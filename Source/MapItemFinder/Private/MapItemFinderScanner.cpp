@@ -1,0 +1,249 @@
+#include "MapItemFinderScanner.h"
+
+#include "FGBuildableSubsystem.h"
+#include "FGInventoryComponent.h"
+#include "FGRecipe.h"
+#include "ItemAmount.h"
+#include "Buildables/FGBuildableManufacturer.h"
+#include "Buildables/FGBuildableResourceExtractorBase.h"
+#include "Buildables/FGBuildableStorage.h"
+#include "Buildables/FGCentralStorageContainer.h"
+#include "Resources/FGExtractableResourceInterface.h"
+
+namespace
+{
+	struct FClusterAccumulator
+	{
+		FVector SumLocation = FVector::ZeroVector;
+		EMapFinderResultKind Kind = EMapFinderResultKind::Produced;
+		int32 BuildingCount = 0;
+		int32 ActiveCount = 0;
+		int32 ItemCount = 0;
+		TMap<FString, int32> BuildingNames;
+
+		FVector GetCentroid() const
+		{
+			return BuildingCount > 0 ? (SumLocation / static_cast<double>(BuildingCount)) : FVector::ZeroVector;
+		}
+	};
+
+	void AddToClusters(
+		TArray<FClusterAccumulator>& Clusters,
+		const FVector& Location,
+		EMapFinderResultKind Kind,
+		const FString& BuildingName,
+		bool bIsActive,
+		int32 ItemCount,
+		float ClusterRadiusSq)
+	{
+		for (FClusterAccumulator& Cluster : Clusters)
+		{
+			if (Cluster.Kind == Kind && FVector::DistSquared(Cluster.GetCentroid(), Location) <= ClusterRadiusSq)
+			{
+				Cluster.SumLocation += Location;
+				Cluster.BuildingCount += 1;
+				Cluster.ActiveCount += bIsActive ? 1 : 0;
+				Cluster.ItemCount += ItemCount;
+				Cluster.BuildingNames.FindOrAdd(BuildingName) += 1;
+				return;
+			}
+		}
+
+		FClusterAccumulator NewCluster;
+		NewCluster.SumLocation = Location;
+		NewCluster.Kind = Kind;
+		NewCluster.BuildingCount = 1;
+		NewCluster.ActiveCount = bIsActive ? 1 : 0;
+		NewCluster.ItemCount = ItemCount;
+		NewCluster.BuildingNames.Add(BuildingName, 1);
+		Clusters.Add(MoveTemp(NewCluster));
+	}
+
+	FString FormatClusterLabel(const FClusterAccumulator& Cluster)
+	{
+		FString PrimaryName = TEXT("Building");
+		int32 PrimaryCount = 0;
+		for (const TPair<FString, int32>& Pair : Cluster.BuildingNames)
+		{
+			if (Pair.Value > PrimaryCount)
+			{
+				PrimaryName = Pair.Key;
+				PrimaryCount = Pair.Value;
+			}
+		}
+
+		const FString CountPrefix = Cluster.BuildingNames.Num() > 1
+			? FString::Printf(TEXT("%dx %s+"), Cluster.BuildingCount, *PrimaryName)
+			: FString::Printf(TEXT("%dx %s"), Cluster.BuildingCount, *PrimaryName);
+
+		switch (Cluster.Kind)
+		{
+		case EMapFinderResultKind::Produced:
+			return FString::Printf(TEXT("[Produced] %s (%d/%d active)"), *CountPrefix, Cluster.ActiveCount, Cluster.BuildingCount);
+		case EMapFinderResultKind::Extracted:
+			return FString::Printf(TEXT("[Extracted] %s (%d/%d active)"), *CountPrefix, Cluster.ActiveCount, Cluster.BuildingCount);
+		case EMapFinderResultKind::DimensionalDepot:
+			return FString::Printf(TEXT("[Depot] %s (%d items)"), *CountPrefix, Cluster.ItemCount);
+		case EMapFinderResultKind::Stored:
+		default:
+			return FString::Printf(TEXT("[Stored] %s (%d items)"), *CountPrefix, Cluster.ItemCount);
+		}
+	}
+}
+
+TArray<FMapFinderCluster> FMapItemFinderScanner::ScanWorldForItem(
+	UWorld* World,
+	TSubclassOf<UFGItemDescriptor> ItemClass,
+	float ClusterRadiusCm,
+	int32 MaxClusters)
+{
+	TArray<FMapFinderCluster> OutClusters;
+	if (!World || !ItemClass)
+	{
+		return OutClusters;
+	}
+
+	AFGBuildableSubsystem* BuildableSubsystem = AFGBuildableSubsystem::Get(World);
+	if (!BuildableSubsystem)
+	{
+		return OutClusters;
+	}
+
+	const float ClusterRadiusSq = FMath::Square(ClusterRadiusCm);
+	TArray<FClusterAccumulator> Accumulators;
+
+	TArray<AFGBuildableManufacturer*> Manufacturers;
+	BuildableSubsystem->GetTypedBuildable<AFGBuildableManufacturer>(Manufacturers);
+	for (AFGBuildableManufacturer* Manufacturer : Manufacturers)
+	{
+		if (!IsValid(Manufacturer))
+		{
+			continue;
+		}
+
+		const TSubclassOf<UFGRecipe> Recipe = Manufacturer->GetCurrentRecipe();
+		if (!Recipe)
+		{
+			continue;
+		}
+
+		bool bProducesItem = false;
+		const TArray<FItemAmount> Products = UFGRecipe::GetProducts(Recipe);
+		for (const FItemAmount& Product : Products)
+		{
+			if (Product.ItemClass == ItemClass)
+			{
+				bProducesItem = true;
+				break;
+			}
+		}
+
+		if (bProducesItem)
+		{
+			const FString Name = Manufacturer->mDisplayName.IsEmpty()
+				? Manufacturer->GetName()
+				: Manufacturer->mDisplayName.ToString();
+			AddToClusters(
+				Accumulators,
+				Manufacturer->GetActorLocation(),
+				EMapFinderResultKind::Produced,
+				Name,
+				Manufacturer->IsProducing(),
+				0,
+				ClusterRadiusSq);
+		}
+	}
+
+	TArray<AFGBuildableResourceExtractorBase*> Extractors;
+	BuildableSubsystem->GetTypedBuildable<AFGBuildableResourceExtractorBase>(Extractors);
+	for (AFGBuildableResourceExtractorBase* Extractor : Extractors)
+	{
+		if (!IsValid(Extractor))
+		{
+			continue;
+		}
+
+		const TScriptInterface<IFGExtractableResourceInterface> Resource = Extractor->GetExtractableResource();
+		if (!Resource.GetInterface())
+		{
+			continue;
+		}
+
+		if (Resource->GetResourceClass() == ItemClass)
+		{
+			const FString Name = Extractor->mDisplayName.IsEmpty()
+				? Extractor->GetName()
+				: Extractor->mDisplayName.ToString();
+			AddToClusters(
+				Accumulators,
+				Extractor->GetActorLocation(),
+				EMapFinderResultKind::Extracted,
+				Name,
+				Extractor->IsProducing(),
+				0,
+				ClusterRadiusSq);
+		}
+	}
+
+	TArray<AFGBuildableStorage*> Storages;
+	BuildableSubsystem->GetTypedBuildable<AFGBuildableStorage>(Storages);
+	for (AFGBuildableStorage* Storage : Storages)
+	{
+		if (!IsValid(Storage))
+		{
+			continue;
+		}
+
+		UFGInventoryComponent* Inventory = Storage->GetStorageInventory();
+		if (!IsValid(Inventory))
+		{
+			continue;
+		}
+
+		const int32 Count = Inventory->GetNumItems(ItemClass);
+		if (Count <= 0)
+		{
+			continue;
+		}
+
+		const bool bIsDepot = Storage->IsA<AFGCentralStorageContainer>();
+		const FString Name = Storage->mDisplayName.IsEmpty()
+			? Storage->GetName()
+			: Storage->mDisplayName.ToString();
+		AddToClusters(
+			Accumulators,
+			Storage->GetActorLocation(),
+			bIsDepot ? EMapFinderResultKind::DimensionalDepot : EMapFinderResultKind::Stored,
+			Name,
+			true,
+			Count,
+			ClusterRadiusSq);
+	}
+
+	Accumulators.Sort([](const FClusterAccumulator& A, const FClusterAccumulator& B)
+	{
+		if (A.BuildingCount != B.BuildingCount)
+		{
+			return A.BuildingCount > B.BuildingCount;
+		}
+		return A.ItemCount > B.ItemCount;
+	});
+
+	const int32 ResultCount = FMath::Min(Accumulators.Num(), MaxClusters);
+	OutClusters.Reserve(ResultCount);
+
+	for (int32 Index = 0; Index < ResultCount; ++Index)
+	{
+		const FClusterAccumulator& Acc = Accumulators[Index];
+		FMapFinderCluster Cluster;
+		Cluster.Location = Acc.GetCentroid();
+		Cluster.Kind = Acc.Kind;
+		Cluster.BuildingCount = Acc.BuildingCount;
+		Cluster.ActiveCount = Acc.ActiveCount;
+		Cluster.ItemCount = Acc.ItemCount;
+		Cluster.Label = FormatClusterLabel(Acc);
+		OutClusters.Add(MoveTemp(Cluster));
+	}
+
+	return OutClusters;
+}
