@@ -1,0 +1,35 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"SemVersion": "0.1.0",
+	"GameVersion": ">=520140",
+	"FriendlyName": "Map Item Finder",
+	"Description": "Search the in-game map for where any item is produced, extracted, or stored across multiplayer and dedicated servers.",
+	"Category": "Modding",
+	"CreatedBy": "renescheepers",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"AcceptsAnyRemoteVersion": true,
+	"RemoteVersionRange": "",
+	"Modules": [
+		{
+			"Name": "MapItemFinder",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "SML",
+			"Enabled": true,
+			"SemVersion": "^3.12.1"
+		}
+	]
+}
