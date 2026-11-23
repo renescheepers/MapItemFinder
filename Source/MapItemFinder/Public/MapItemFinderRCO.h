@@ -14,6 +14,14 @@ class MAPITEMFINDER_API UMapItemFinderRCO : public UFGRemoteCallObject
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	UFUNCTION(Server, Reliable)
+	void Server_RequestProducedItems(int32 RequestId);
+
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveProducedItems(
+		int32 RequestId,
+		const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SearchItem(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId);
 

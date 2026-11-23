@@ -30,13 +30,22 @@ public:
 	virtual ~SMapItemFinderOverlay() override;
 
 private:
-	void PopulateItems();
-	void UpdateFilteredItems(const FString& Query);
+	void RebuildProducedItemEntries(const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems);
+	void UpdateFilteredItems(const FString& Query, bool bOpenIfNonEmpty);
 	void SelectItem(const TSharedPtr<FMapFinderItemEntry>& Entry);
+
+	void HandleProducedItemsUpdated(
+		const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems,
+		bool bFromServer);
 	void HandleResultsUpdated(
 		TSubclassOf<UFGItemDescriptor> ItemClass,
 		const TArray<FMapFinderCluster>& Results,
 		bool bFromServer);
+
+	FReply OnNormalModeClicked();
+	FReply OnFinderModeClicked();
+	FReply OnToggleDropdownClicked();
+	FReply OnClearClicked();
 
 	void OnSearchTextChanged(const FText& NewText);
 	void OnSearchTextCommitted(const FText& NewText, ETextCommit::Type CommitType);
@@ -44,16 +53,20 @@ private:
 		TSharedPtr<FMapFinderItemEntry> Entry,
 		const TSharedRef<STableViewBase>& OwnerTable);
 	void OnItemSelectionChanged(TSharedPtr<FMapFinderItemEntry> Entry, ESelectInfo::Type SelectInfo);
-	FReply OnClearClicked();
 	void OnProducedCheckChanged(ECheckBoxState NewState);
 	void OnStoredCheckChanged(ECheckBoxState NewState);
+
+	EVisibility GetFinderPanelVisibility() const;
 	EVisibility GetDropdownVisibility() const;
+	FSlateColor GetNormalButtonColor() const;
+	FSlateColor GetFinderButtonColor() const;
 
 	TWeakObjectPtr<UWorld> WorldPtr;
 	TWeakObjectPtr<UMapItemFinderSubsystem> SubsystemPtr;
 	FDelegateHandle ResultsDelegateHandle;
+	FDelegateHandle ProducedItemsDelegateHandle;
 
-	TArray<TSharedPtr<FMapFinderItemEntry>> AllItems;
+	TArray<TSharedPtr<FMapFinderItemEntry>> ProducedItemEntries;
 	TArray<TSharedPtr<FMapFinderItemEntry>> FilteredItems;
 
 	TSharedPtr<SEditableTextBox> SearchBox;

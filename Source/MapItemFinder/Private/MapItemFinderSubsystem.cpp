@@ -51,6 +51,58 @@ void UMapItemFinderSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UMapItemFinderSubsystem::SetFinderMode(UWorld* World, bool bEnableFinder)
+{
+	bFinderModeActive = bEnableFinder;
+
+	if (!bFinderModeActive)
+	{
+		ClearPins(World);
+		return;
+	}
+
+	if (World)
+	{
+		RequestProducedItems(World);
+	}
+}
+
+void UMapItemFinderSubsystem::RequestProducedItems(UWorld* World)
+{
+	if (!World)
+	{
+		return;
+	}
+
+	const int32 RequestId = ++LastProducedItemsRequestId;
+
+	if (AFGPlayerController* PC = Cast<AFGPlayerController>(World->GetFirstPlayerController()))
+	{
+		if (UMapItemFinderRCO* RCO = PC->GetRemoteCallObjectOfClass<UMapItemFinderRCO>())
+		{
+			RCO->Server_RequestProducedItems(RequestId);
+			return;
+		}
+	}
+
+	const TArray<TSubclassOf<UFGItemDescriptor>> LocalItems = FMapItemFinderScanner::ScanProducedItems(World);
+	HandleProducedItems(RequestId, LocalItems, false);
+}
+
+void UMapItemFinderSubsystem::HandleProducedItems(
+	int32 RequestId,
+	const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems,
+	bool bFromServer)
+{
+	if (RequestId != LastProducedItemsRequestId)
+	{
+		return;
+	}
+
+	CachedProducedItems = ProducedItems;
+	OnProducedItemsUpdated.Broadcast(CachedProducedItems, bFromServer);
+}
+
 void UMapItemFinderSubsystem::RequestSearch(UWorld* World, TSubclassOf<UFGItemDescriptor> ItemClass)
 {
 	if (!World || !ItemClass)
@@ -59,7 +111,7 @@ void UMapItemFinderSubsystem::RequestSearch(UWorld* World, TSubclassOf<UFGItemDe
 	}
 
 	ActiveItemClass = ItemClass;
-	const int32 RequestId = ++LastRequestId;
+	const int32 RequestId = ++LastSearchRequestId;
 
 	if (AFGPlayerController* PC = Cast<AFGPlayerController>(World->GetFirstPlayerController()))
 	{
@@ -70,7 +122,6 @@ void UMapItemFinderSubsystem::RequestSearch(UWorld* World, TSubclassOf<UFGItemDe
 		}
 	}
 
-	// Client-only fallback when the server does not have MapItemFinder installed
 	const TArray<FMapFinderCluster> LocalResults = FMapItemFinderScanner::ScanWorldForItem(World, ItemClass);
 	HandleSearchResults(World, ItemClass, RequestId, LocalResults, false);
 }
@@ -82,7 +133,7 @@ void UMapItemFinderSubsystem::HandleSearchResults(
 	const TArray<FMapFinderCluster>& Results,
 	bool bFromServer)
 {
-	if (!World || RequestId != LastRequestId)
+	if (!World || RequestId != LastSearchRequestId || !bFinderModeActive)
 	{
 		return;
 	}
@@ -97,7 +148,7 @@ void UMapItemFinderSubsystem::SetFilters(UWorld* World, bool bInShowProduced, bo
 {
 	bShowProduced = bInShowProduced;
 	bShowStored = bInShowStored;
-	if (World && ActiveItemClass)
+	if (World && bFinderModeActive && ActiveItemClass)
 	{
 		RebuildPins(World);
 	}
@@ -229,6 +280,11 @@ void UMapItemFinderSubsystem::HandleMapOpened(UFGMapWidget* MapWidget)
 		.Subsystem(this);
 
 	World->GetGameViewport()->AddViewportWidgetContent(ActiveOverlay.ToSharedRef(), 100);
+
+	if (bFinderModeActive)
+	{
+		RequestProducedItems(World);
+	}
 }
 
 void UMapItemFinderSubsystem::HandleMapClosed(UFGMapWidget* MapWidget)

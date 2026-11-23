@@ -4,7 +4,9 @@ A lightweight Satisfactory (SML `^3.12.1`, SMM `v3.2.0`) mod that adds a search 
 
 ## How it works
 
-- **Dedicated server / Host (authoritative):** When you pick an item in the map search bar, the client sends a reliable Server RPC (`UMapItemFinderRCO::Server_SearchItem`). The server scans `AFGBuildableSubsystem` (manufacturers, extractors, storage containers, and Dimensional Depots), clusters nearby machines within 25 m into a single pin, and sends the compact result list back to the requesting player.
+- **Normal / Finder map toggle:** Opening the in-game map shows two mode buttons at the top: **Normal** (default vanilla map, with Finder UI and pins hidden) and **Finder**.
+- **Produced-only searchable dropdown:** Switching to **Finder** queries the server (`UMapItemFinderRCO::Server_RequestProducedItems`) for every item currently produced by a manufacturer or extractor in the world, and populates the searchable textbox/dropdown exclusively with those items.
+- **Dedicated server / Host (authoritative):** Picking an item sends `UMapItemFinderRCO::Server_SearchItem`. The server scans `AFGBuildableSubsystem` (manufacturers, extractors, storage containers, and Dimensional Depots), clusters nearby machines within 25 m into a single pin, and returns the compact result list to the requesting player.
 - **Per-player map pins:** Results render as local-only `UFGActorRepresentation` map markers (green = produced, cyan = extracted, amber = stored, purple = Dimensional Depot) so your search never clutters other players' maps.
 - **Client-only fallback:** `AcceptsAnyRemoteVersion` is enabled; if the server does not have the mod installed, the client falls back to scanning locally replicated buildables.
 - **Pure C++ + Slate:** No `.uasset` Blueprints required. All Slate UI code is guarded with `#if !UE_SERVER` so `LinuxServer` builds cleanly.

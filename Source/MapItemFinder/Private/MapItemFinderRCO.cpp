@@ -12,6 +12,37 @@ void UMapItemFinderRCO::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(UMapItemFinderRCO, bForceNetField);
 }
 
+void UMapItemFinderRCO::Server_RequestProducedItems_Implementation(int32 RequestId)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TArray<TSubclassOf<UFGItemDescriptor>> ProducedItems = FMapItemFinderScanner::ScanProducedItems(World);
+	Client_ReceiveProducedItems(RequestId, ProducedItems);
+}
+
+void UMapItemFinderRCO::Client_ReceiveProducedItems_Implementation(
+	int32 RequestId,
+	const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		if (UMapItemFinderSubsystem* Subsystem = GameInstance->GetSubsystem<UMapItemFinderSubsystem>())
+		{
+			Subsystem->HandleProducedItems(RequestId, ProducedItems, true);
+		}
+	}
+}
+
 bool UMapItemFinderRCO::Server_SearchItem_Validate(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId)
 {
 	return ItemClass != nullptr;

@@ -91,6 +91,70 @@ namespace
 	}
 }
 
+TArray<TSubclassOf<UFGItemDescriptor>> FMapItemFinderScanner::ScanProducedItems(UWorld* World)
+{
+	TArray<TSubclassOf<UFGItemDescriptor>> OutItems;
+	if (!World)
+	{
+		return OutItems;
+	}
+
+	AFGBuildableSubsystem* BuildableSubsystem = AFGBuildableSubsystem::Get(World);
+	if (!BuildableSubsystem)
+	{
+		return OutItems;
+	}
+
+	TSet<TSubclassOf<UFGItemDescriptor>> UniqueItems;
+
+	TArray<AFGBuildableManufacturer*> Manufacturers;
+	BuildableSubsystem->GetTypedBuildable<AFGBuildableManufacturer>(Manufacturers);
+	for (AFGBuildableManufacturer* Manufacturer : Manufacturers)
+	{
+		if (!IsValid(Manufacturer))
+		{
+			continue;
+		}
+
+		const TSubclassOf<UFGRecipe> Recipe = Manufacturer->GetCurrentRecipe();
+		if (!Recipe)
+		{
+			continue;
+		}
+
+		const TArray<FItemAmount> Products = UFGRecipe::GetProducts(Recipe);
+		for (const FItemAmount& Product : Products)
+		{
+			if (Product.ItemClass)
+			{
+				UniqueItems.Add(Product.ItemClass);
+			}
+		}
+	}
+
+	TArray<AFGBuildableResourceExtractorBase*> Extractors;
+	BuildableSubsystem->GetTypedBuildable<AFGBuildableResourceExtractorBase>(Extractors);
+	for (AFGBuildableResourceExtractorBase* Extractor : Extractors)
+	{
+		if (!IsValid(Extractor))
+		{
+			continue;
+		}
+
+		const TScriptInterface<IFGExtractableResourceInterface> Resource = Extractor->GetExtractableResource();
+		if (Resource.GetInterface())
+		{
+			if (TSubclassOf<UFGResourceDescriptor> ResourceClass = Resource->GetResourceClass())
+			{
+				UniqueItems.Add(ResourceClass);
+			}
+		}
+	}
+
+	OutItems = UniqueItems.Array();
+	return OutItems;
+}
+
 TArray<FMapFinderCluster> FMapItemFinderScanner::ScanWorldForItem(
 	UWorld* World,
 	TSubclassOf<UFGItemDescriptor> ItemClass,
