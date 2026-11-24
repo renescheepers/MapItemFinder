@@ -109,6 +109,32 @@ void UMapItemFinderSubsystem::HandleProducedItems(
 	OnProducedItemsUpdated.Broadcast(CachedProducedItems, bFromServer);
 }
 
+void UMapItemFinderSubsystem::ToggleItemSelection(UWorld* World, TSubclassOf<UFGItemDescriptor> ItemClass)
+{
+	if (!World || !ItemClass)
+	{
+		return;
+	}
+
+	if (SelectedItemClasses.Contains(ItemClass))
+	{
+		SelectedItemClasses.Remove(ItemClass);
+		ResultsByItem.Remove(ItemClass);
+		ItemRequestIds.Remove(ItemClass);
+		RebuildPins(World);
+		OnResultsUpdated.Broadcast(true);
+		return;
+	}
+
+	SelectedItemClasses.Add(ItemClass);
+	RequestSearch(World, ItemClass);
+}
+
+bool UMapItemFinderSubsystem::IsItemSelected(TSubclassOf<UFGItemDescriptor> ItemClass) const
+{
+	return ItemClass && SelectedItemClasses.Contains(ItemClass);
+}
+
 void UMapItemFinderSubsystem::RequestSearch(UWorld* World, TSubclassOf<UFGItemDescriptor> ItemClass)
 {
 	if (!World || !ItemClass)
@@ -116,8 +142,8 @@ void UMapItemFinderSubsystem::RequestSearch(UWorld* World, TSubclassOf<UFGItemDe
 		return;
 	}
 
-	ActiveItemClass = ItemClass;
-	const int32 RequestId = ++LastSearchRequestId;
+	const int32 RequestId = ++NextSearchRequestId;
+	ItemRequestIds.Add(ItemClass, RequestId);
 
 	if (AFGPlayerController* PC = Cast<AFGPlayerController>(World->GetFirstPlayerController()))
 	{
@@ -139,15 +165,20 @@ void UMapItemFinderSubsystem::HandleSearchResults(
 	const TArray<FMapFinderCluster>& Results,
 	bool bFromServer)
 {
-	if (!World || RequestId != LastSearchRequestId || !bFinderModeActive)
+	if (!World || !ItemClass || !bFinderModeActive || !SelectedItemClasses.Contains(ItemClass))
 	{
 		return;
 	}
 
-	ActiveItemClass = ItemClass;
-	LastResults = Results;
+	const int32* ExpectedId = ItemRequestIds.Find(ItemClass);
+	if (!ExpectedId || *ExpectedId != RequestId)
+	{
+		return;
+	}
+
+	ResultsByItem.Add(ItemClass, Results);
 	RebuildPins(World);
-	OnResultsUpdated.Broadcast(ItemClass, LastResults, bFromServer);
+	OnResultsUpdated.Broadcast(bFromServer);
 }
 
 void UMapItemFinderSubsystem::RequestResourceNodes(UWorld* World)
@@ -220,13 +251,34 @@ void UMapItemFinderSubsystem::SetShowResourceNodes(UWorld* World, bool bEnable)
 	}
 }
 
-void UMapItemFinderSubsystem::SetResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass)
+void UMapItemFinderSubsystem::ToggleResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass)
 {
-	SelectedNodeResourceFilter = ResourceClass;
+	if (!ResourceClass)
+	{
+		SelectedNodeResourceFilters.Empty();
+	}
+	else if (SelectedNodeResourceFilters.Contains(ResourceClass))
+	{
+		SelectedNodeResourceFilters.Remove(ResourceClass);
+	}
+	else
+	{
+		SelectedNodeResourceFilters.Add(ResourceClass);
+	}
+
 	if (World && bFinderModeActive && bShowResourceNodes)
 	{
 		RebuildResourceNodePins(World);
 	}
+}
+
+bool UMapItemFinderSubsystem::IsResourceNodeFilterSelected(TSubclassOf<UFGItemDescriptor> ResourceClass) const
+{
+	if (!ResourceClass)
+	{
+		return SelectedNodeResourceFilters.Num() == 0;
+	}
+	return SelectedNodeResourceFilters.Contains(ResourceClass);
 }
 
 void UMapItemFinderSubsystem::ClearResourceNodePins(UWorld* World)
@@ -257,13 +309,14 @@ void UMapItemFinderSubsystem::RebuildResourceNodePins(UWorld* World)
 
 	ClearResourceNodePins(World);
 
+	const bool bFilterActive = SelectedNodeResourceFilters.Num() > 0;
 	for (const FMapFinderResourceNode& Node : CachedResourceNodes)
 	{
 		if (!Node.ResourceClass)
 		{
 			continue;
 		}
-		if (SelectedNodeResourceFilter && Node.ResourceClass != SelectedNodeResourceFilter)
+		if (bFilterActive && !SelectedNodeResourceFilters.Contains(Node.ResourceClass))
 		{
 			continue;
 		}
@@ -284,7 +337,7 @@ void UMapItemFinderSubsystem::SetFilters(UWorld* World, bool bInShowProduced, bo
 {
 	bShowProduced = bInShowProduced;
 	bShowStored = bInShowStored;
-	if (World && bFinderModeActive && ActiveItemClass)
+	if (World && bFinderModeActive && SelectedItemClasses.Num() > 0)
 	{
 		RebuildPins(World);
 	}
@@ -306,8 +359,9 @@ void UMapItemFinderSubsystem::ClearPins(UWorld* World)
 		}
 	}
 	ActivePins.Empty();
-	ActiveItemClass = nullptr;
-	LastResults.Empty();
+	SelectedItemClasses.Empty();
+	ResultsByItem.Empty();
+	ItemRequestIds.Empty();
 }
 
 void UMapItemFinderSubsystem::RebuildPins(UWorld* World)
@@ -327,25 +381,34 @@ void UMapItemFinderSubsystem::RebuildPins(UWorld* World)
 	}
 	ActivePins.Empty();
 
-	for (const FMapFinderCluster& Cluster : LastResults)
+	for (const TSubclassOf<UFGItemDescriptor>& ItemClass : SelectedItemClasses)
 	{
-		const bool bIsProduction = (Cluster.Kind == EMapFinderResultKind::Produced || Cluster.Kind == EMapFinderResultKind::Extracted);
-		const bool bIsStorage = (Cluster.Kind == EMapFinderResultKind::Stored || Cluster.Kind == EMapFinderResultKind::DimensionalDepot);
-
-		if ((bIsProduction && !bShowProduced) || (bIsStorage && !bShowStored))
+		const TArray<FMapFinderCluster>* Clusters = ResultsByItem.Find(ItemClass);
+		if (!Clusters)
 		{
 			continue;
 		}
 
-		UMapItemFinderRepresentation* Pin = NewObject<UMapItemFinderRepresentation>(RepManager);
-		if (!Pin)
+		for (const FMapFinderCluster& Cluster : *Clusters)
 		{
-			continue;
-		}
+			const bool bIsProduction = (Cluster.Kind == EMapFinderResultKind::Produced || Cluster.Kind == EMapFinderResultKind::Extracted);
+			const bool bIsStorage = (Cluster.Kind == EMapFinderResultKind::Stored || Cluster.Kind == EMapFinderResultKind::DimensionalDepot);
 
-		Pin->InitializePin(World, ActiveItemClass, Cluster);
-		RepManager->AddRepresentation(Pin);
-		ActivePins.Add(Pin);
+			if ((bIsProduction && !bShowProduced) || (bIsStorage && !bShowStored))
+			{
+				continue;
+			}
+
+			UMapItemFinderRepresentation* Pin = NewObject<UMapItemFinderRepresentation>(RepManager);
+			if (!Pin)
+			{
+				continue;
+			}
+
+			Pin->InitializePin(World, ItemClass, Cluster);
+			RepManager->AddRepresentation(Pin);
+			ActivePins.Add(Pin);
+		}
 	}
 }
 

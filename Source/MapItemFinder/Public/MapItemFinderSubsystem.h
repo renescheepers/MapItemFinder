@@ -13,10 +13,8 @@ class UMapItemFinderRepresentation;
 class SMapItemFinderOverlay;
 #endif
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(
+DECLARE_MULTICAST_DELEGATE_OneParam(
 	FOnMapFinderResultsUpdated,
-	TSubclassOf<UFGItemDescriptor>,
-	const TArray<FMapFinderCluster>&,
 	bool /* bFromServer */);
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
@@ -47,6 +45,8 @@ public:
 		const TArray<FMapFinderProducedItem>& ProducedItems,
 		bool bFromServer = true);
 
+	void ToggleItemSelection(UWorld* World, TSubclassOf<UFGItemDescriptor> ItemClass);
+	bool IsItemSelected(TSubclassOf<UFGItemDescriptor> ItemClass) const;
 	void RequestSearch(UWorld* World, TSubclassOf<UFGItemDescriptor> ItemClass);
 	void HandleSearchResults(
 		UWorld* World,
@@ -65,7 +65,8 @@ public:
 		bool bFromServer = true);
 
 	void SetShowResourceNodes(UWorld* World, bool bEnable);
-	void SetResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass);
+	void ToggleResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass);
+	bool IsResourceNodeFilterSelected(TSubclassOf<UFGItemDescriptor> ResourceClass) const;
 	void ClearResourceNodePins(UWorld* World);
 
 	void SetFilters(UWorld* World, bool bInShowProduced, bool bInShowStored);
@@ -74,9 +75,8 @@ public:
 	bool GetShowProduced() const { return bShowProduced; }
 	bool GetShowStored() const { return bShowStored; }
 	bool GetShowResourceNodes() const { return bShowResourceNodes; }
-	TSubclassOf<UFGItemDescriptor> GetSelectedNodeResourceFilter() const { return SelectedNodeResourceFilter; }
-	TSubclassOf<UFGItemDescriptor> GetActiveItemClass() const { return ActiveItemClass; }
-	const TArray<FMapFinderCluster>& GetLastResults() const { return LastResults; }
+	const TSet<TSubclassOf<UFGItemDescriptor>>& GetSelectedItemClasses() const { return SelectedItemClasses; }
+	const TMap<TSubclassOf<UFGItemDescriptor>, TArray<FMapFinderCluster>>& GetResultsByItem() const { return ResultsByItem; }
 	const TArray<FMapFinderProducedItem>& GetCachedProducedItems() const { return CachedProducedItems; }
 	const TArray<FMapFinderResourceNode>& GetCachedResourceNodes() const { return CachedResourceNodes; }
 
@@ -109,10 +109,10 @@ private:
 	TArray<TObjectPtr<UMapItemFinderRepresentation>> ResourceNodePins;
 
 	UPROPERTY()
-	TSubclassOf<UFGItemDescriptor> ActiveItemClass;
+	TSet<TSubclassOf<UFGItemDescriptor>> SelectedItemClasses;
 
 	UPROPERTY()
-	TSubclassOf<UFGItemDescriptor> SelectedNodeResourceFilter;
+	TSet<TSubclassOf<UFGItemDescriptor>> SelectedNodeResourceFilters;
 
 	UPROPERTY()
 	TArray<FMapFinderProducedItem> CachedProducedItems;
@@ -120,8 +120,9 @@ private:
 	UPROPERTY()
 	TArray<FMapFinderResourceNode> CachedResourceNodes;
 
-	TArray<FMapFinderCluster> LastResults;
-	int32 LastSearchRequestId = 0;
+	TMap<TSubclassOf<UFGItemDescriptor>, TArray<FMapFinderCluster>> ResultsByItem;
+	TMap<TSubclassOf<UFGItemDescriptor>, int32> ItemRequestIds;
+	int32 NextSearchRequestId = 0;
 	int32 LastProducedItemsRequestId = 0;
 	int32 LastResourceNodesRequestId = 0;
 	bool bFinderModeActive = false;

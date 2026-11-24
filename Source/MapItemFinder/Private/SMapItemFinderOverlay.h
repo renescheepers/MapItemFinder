@@ -39,7 +39,8 @@ private:
 	void RebuildProducedItemEntries(const TArray<FMapFinderProducedItem>& ProducedItems);
 	void RebuildResourceNodeFilterBar(const TArray<FMapFinderResourceNode>& Nodes);
 	void UpdateFilteredItems(const FString& Query, bool bOpenIfNonEmpty);
-	void SelectItem(const TSharedPtr<FMapFinderItemEntry>& Entry);
+	void ToggleItem(const TSharedPtr<FMapFinderItemEntry>& Entry);
+	void RefreshStatusText(bool bFromServer);
 
 	void HandleProducedItemsUpdated(
 		const TArray<FMapFinderProducedItem>& ProducedItems,
@@ -47,10 +48,7 @@ private:
 	void HandleResourceNodesUpdated(
 		const TArray<FMapFinderResourceNode>& Nodes,
 		bool bFromServer);
-	void HandleResultsUpdated(
-		TSubclassOf<UFGItemDescriptor> ItemClass,
-		const TArray<FMapFinderCluster>& Results,
-		bool bFromServer);
+	void HandleResultsUpdated(bool bFromServer);
 
 	FReply OnNormalModeClicked();
 	FReply OnFinderModeClicked();
@@ -63,7 +61,9 @@ private:
 	TSharedRef<ITableRow> OnGenerateItemRow(
 		TSharedPtr<FMapFinderItemEntry> Entry,
 		const TSharedRef<STableViewBase>& OwnerTable);
-	void OnItemSelectionChanged(TSharedPtr<FMapFinderItemEntry> Entry, ESelectInfo::Type SelectInfo);
+	void OnItemRowClicked(TSharedPtr<FMapFinderItemEntry> Entry);
+	void OnItemCheckboxChanged(ECheckBoxState NewState, TSubclassOf<UFGItemDescriptor> ItemClass);
+	ECheckBoxState IsItemChecked(TSubclassOf<UFGItemDescriptor> ItemClass) const;
 	void OnProducedCheckChanged(ECheckBoxState NewState);
 	void OnStoredCheckChanged(ECheckBoxState NewState);
 	void OnResourceNodesCheckChanged(ECheckBoxState NewState);

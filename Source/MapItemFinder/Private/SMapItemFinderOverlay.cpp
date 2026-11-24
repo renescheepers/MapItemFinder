@@ -115,7 +115,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 							.VAlign(VAlign_Center)
 							[
 								SAssignNew(SearchBox, SEditableTextBox)
-								.HintText(FText::FromString(TEXT("Search produced items...")))
+								.HintText(FText::FromString(TEXT("Search & toggle produced items...")))
 								.OnTextChanged(this, &SMapItemFinderOverlay::OnSearchTextChanged)
 								.OnTextCommitted(this, &SMapItemFinderOverlay::OnSearchTextCommitted)
 							]
@@ -221,8 +221,8 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 								SAssignNew(ResultsListView, SListView<TSharedPtr<FMapFinderItemEntry>>)
 								.ListItemsSource(&FilteredItems)
 								.OnGenerateRow(this, &SMapItemFinderOverlay::OnGenerateItemRow)
-								.OnSelectionChanged(this, &SMapItemFinderOverlay::OnItemSelectionChanged)
-								.SelectionMode(ESelectionMode::Single)
+								.OnMouseButtonClick(this, &SMapItemFinderOverlay::OnItemRowClicked)
+								.SelectionMode(ESelectionMode::None)
 							]
 						]
 					]
@@ -237,9 +237,9 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 		{
 			RebuildResourceNodeFilterBar(Subsystem->GetCachedResourceNodes());
 		}
-		if (Subsystem->IsFinderModeActive() && Subsystem->GetActiveItemClass())
+		if (Subsystem->IsFinderModeActive() && Subsystem->GetSelectedItemClasses().Num() > 0)
 		{
-			HandleResultsUpdated(Subsystem->GetActiveItemClass(), Subsystem->GetLastResults(), true);
+			RefreshStatusText(true);
 		}
 	}
 }
@@ -439,27 +439,82 @@ void SMapItemFinderOverlay::UpdateFilteredItems(const FString& Query, bool bOpen
 	}
 }
 
-void SMapItemFinderOverlay::SelectItem(const TSharedPtr<FMapFinderItemEntry>& Entry)
+void SMapItemFinderOverlay::ToggleItem(const TSharedPtr<FMapFinderItemEntry>& Entry)
 {
 	if (!Entry.IsValid() || Entry->bIsHeader)
 	{
 		return;
 	}
 
-	bDropdownOpen = false;
-	if (SearchBox.IsValid())
-	{
-		SearchBox->SetText(FText::FromString(Entry->DisplayName));
-	}
-	if (StatusText.IsValid())
-	{
-		StatusText->SetText(FText::FromString(FString::Printf(TEXT("Searching for %s..."), *Entry->DisplayName)));
-	}
-
 	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
-		Subsystem->RequestSearch(WorldPtr.Get(), Entry->ItemClass);
+		Subsystem->ToggleItemSelection(WorldPtr.Get(), Entry->ItemClass);
 	}
+}
+
+void SMapItemFinderOverlay::RefreshStatusText(bool bFromServer)
+{
+	if (!StatusText.IsValid())
+	{
+		return;
+	}
+
+	UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get();
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	const TSet<TSubclassOf<UFGItemDescriptor>>& Selected = Subsystem->GetSelectedItemClasses();
+	const FString ModeSuffix = bFromServer ? TEXT("") : TEXT(" (local client only)");
+
+	if (Selected.Num() == 0)
+	{
+		StatusText->SetText(FText::FromString(
+			FString::Printf(TEXT("%d produced item(s) available%s"), ProducedItemEntries.Num(), *ModeSuffix)));
+		return;
+	}
+
+	int32 ProdSites = 0;
+	int32 ProdMachines = 0;
+	int32 StorageSites = 0;
+	int32 StoredItems = 0;
+
+	const TMap<TSubclassOf<UFGItemDescriptor>, TArray<FMapFinderCluster>>& ResultsByItem = Subsystem->GetResultsByItem();
+	for (const TSubclassOf<UFGItemDescriptor>& ItemClass : Selected)
+	{
+		if (const TArray<FMapFinderCluster>* Clusters = ResultsByItem.Find(ItemClass))
+		{
+			for (const FMapFinderCluster& Cluster : *Clusters)
+			{
+				if (Cluster.Kind == EMapFinderResultKind::Produced || Cluster.Kind == EMapFinderResultKind::Extracted)
+				{
+					ProdSites += 1;
+					ProdMachines += Cluster.BuildingCount;
+				}
+				else
+				{
+					StorageSites += 1;
+					StoredItems += Cluster.ItemCount;
+				}
+			}
+		}
+	}
+
+	FString Prefix;
+	if (Selected.Num() == 1)
+	{
+		const TSubclassOf<UFGItemDescriptor> OnlyItem = *Selected.CreateConstIterator();
+		Prefix = OnlyItem ? UFGItemDescriptor::GetItemName(OnlyItem).ToString() : TEXT("Item");
+	}
+	else
+	{
+		Prefix = FString::Printf(TEXT("%d items"), Selected.Num());
+	}
+
+	StatusText->SetText(FText::FromString(FString::Printf(
+		TEXT("%s: %d prod site(s) (%d machines), %d storage site(s) (%d items)%s"),
+		*Prefix, ProdSites, ProdMachines, StorageSites, StoredItems, *ModeSuffix)));
 }
 
 void SMapItemFinderOverlay::HandleProducedItemsUpdated(
@@ -468,11 +523,9 @@ void SMapItemFinderOverlay::HandleProducedItemsUpdated(
 {
 	RebuildProducedItemEntries(ProducedItems);
 
-	if (StatusText.IsValid() && (!SubsystemPtr.IsValid() || !SubsystemPtr->GetActiveItemClass()))
+	if (!SubsystemPtr.IsValid() || SubsystemPtr->GetSelectedItemClasses().Num() == 0)
 	{
-		const FString ModeSuffix = bFromServer ? TEXT("") : TEXT(" (local client only)");
-		StatusText->SetText(FText::FromString(
-			FString::Printf(TEXT("%d produced item(s) available%s"), ProducedItemEntries.Num(), *ModeSuffix)));
+		RefreshStatusText(bFromServer);
 	}
 }
 
@@ -483,48 +536,9 @@ void SMapItemFinderOverlay::HandleResourceNodesUpdated(
 	RebuildResourceNodeFilterBar(Nodes);
 }
 
-void SMapItemFinderOverlay::HandleResultsUpdated(
-	TSubclassOf<UFGItemDescriptor> ItemClass,
-	const TArray<FMapFinderCluster>& Results,
-	bool bFromServer)
+void SMapItemFinderOverlay::HandleResultsUpdated(bool bFromServer)
 {
-	if (!StatusText.IsValid())
-	{
-		return;
-	}
-
-	int32 ProdSites = 0;
-	int32 ProdMachines = 0;
-	int32 StorageSites = 0;
-	int32 StoredItems = 0;
-
-	for (const FMapFinderCluster& Cluster : Results)
-	{
-		if (Cluster.Kind == EMapFinderResultKind::Produced || Cluster.Kind == EMapFinderResultKind::Extracted)
-		{
-			ProdSites += 1;
-			ProdMachines += Cluster.BuildingCount;
-		}
-		else
-		{
-			StorageSites += 1;
-			StoredItems += Cluster.ItemCount;
-		}
-	}
-
-	const FString ItemName = ItemClass ? UFGItemDescriptor::GetItemName(ItemClass).ToString() : TEXT("Item");
-	const FString ModeSuffix = bFromServer ? TEXT("") : TEXT(" (local client only)");
-
-	if (Results.Num() == 0)
-	{
-		StatusText->SetText(FText::FromString(
-			FString::Printf(TEXT("%s: no production or storage found%s"), *ItemName, *ModeSuffix)));
-		return;
-	}
-
-	StatusText->SetText(FText::FromString(FString::Printf(
-		TEXT("%s: %d prod site(s) (%d machines), %d storage site(s) (%d items)%s"),
-		*ItemName, ProdSites, ProdMachines, StorageSites, StoredItems, *ModeSuffix)));
+	RefreshStatusText(bFromServer);
 }
 
 FReply SMapItemFinderOverlay::OnNormalModeClicked()
@@ -541,7 +555,7 @@ FReply SMapItemFinderOverlay::OnFinderModeClicked()
 {
 	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
-		if (StatusText.IsValid() && !Subsystem->GetActiveItemClass())
+		if (StatusText.IsValid() && Subsystem->GetSelectedItemClasses().Num() == 0)
 		{
 			StatusText->SetText(FText::FromString(TEXT("Loading produced items...")));
 		}
@@ -567,7 +581,7 @@ FReply SMapItemFinderOverlay::OnSelectNodeResourceFilter(TSubclassOf<UFGItemDesc
 {
 	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
-		Subsystem->SetResourceNodeFilter(WorldPtr.Get(), ResourceClass);
+		Subsystem->ToggleResourceNodeFilter(WorldPtr.Get(), ResourceClass);
 	}
 	return FReply::Handled();
 }
@@ -586,7 +600,7 @@ void SMapItemFinderOverlay::OnSearchTextCommitted(const FText& NewText, ETextCom
 		{
 			if (Entry.IsValid() && !Entry->bIsHeader)
 			{
-				SelectItem(Entry);
+				ToggleItem(Entry);
 				break;
 			}
 		}
@@ -615,10 +629,23 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 			];
 	}
 
+	const TSubclassOf<UFGItemDescriptor> EntryItemClass = Entry.IsValid() ? Entry->ItemClass : nullptr;
+
 	return SNew(STableRow<TSharedPtr<FMapFinderItemEntry>>, OwnerTable)
-		.Padding(FMargin(10.0f, 3.0f))
+		.ShowSelection(false)
+		.Padding(FMargin(8.0f, 3.0f))
 		[
 			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.0f, 0.0f, 6.0f, 0.0f))
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &SMapItemFinderOverlay::IsItemChecked, EntryItemClass)
+				.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnItemCheckboxChanged, EntryItemClass)
+			]
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -644,14 +671,26 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 		];
 }
 
-void SMapItemFinderOverlay::OnItemSelectionChanged(
-	TSharedPtr<FMapFinderItemEntry> Entry,
-	ESelectInfo::Type SelectInfo)
+void SMapItemFinderOverlay::OnItemRowClicked(TSharedPtr<FMapFinderItemEntry> Entry)
 {
-	if (SelectInfo != ESelectInfo::Direct && Entry.IsValid() && !Entry->bIsHeader)
+	ToggleItem(Entry);
+}
+
+void SMapItemFinderOverlay::OnItemCheckboxChanged(
+	ECheckBoxState NewState,
+	TSubclassOf<UFGItemDescriptor> ItemClass)
+{
+	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
-		SelectItem(Entry);
+		Subsystem->ToggleItemSelection(WorldPtr.Get(), ItemClass);
 	}
+}
+
+ECheckBoxState SMapItemFinderOverlay::IsItemChecked(TSubclassOf<UFGItemDescriptor> ItemClass) const
+{
+	return (SubsystemPtr.IsValid() && SubsystemPtr->IsItemSelected(ItemClass))
+		? ECheckBoxState::Checked
+		: ECheckBoxState::Unchecked;
 }
 
 FReply SMapItemFinderOverlay::OnClearClicked()
@@ -665,11 +704,7 @@ FReply SMapItemFinderOverlay::OnClearClicked()
 	{
 		Subsystem->ClearPins(WorldPtr.Get());
 	}
-	if (StatusText.IsValid())
-	{
-		StatusText->SetText(FText::FromString(
-			FString::Printf(TEXT("%d produced item(s) available"), ProducedItemEntries.Num())));
-	}
+	RefreshStatusText(true);
 	return FReply::Handled();
 }
 
@@ -735,7 +770,7 @@ FSlateColor SMapItemFinderOverlay::GetFinderButtonColor() const
 FSlateColor SMapItemFinderOverlay::GetNodeFilterButtonColor(TSubclassOf<UFGItemDescriptor> ResourceClass) const
 {
 	const bool bIsSelected = SubsystemPtr.IsValid()
-		&& SubsystemPtr->GetSelectedNodeResourceFilter() == ResourceClass;
+		&& SubsystemPtr->IsResourceNodeFilterSelected(ResourceClass);
 	return bIsSelected
 		? FSlateColor(FLinearColor(0.25f, 0.70f, 0.95f, 1.0f))
 		: FSlateColor(FLinearColor(0.18f, 0.21f, 0.26f, 1.0f));
