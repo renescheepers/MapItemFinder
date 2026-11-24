@@ -274,7 +274,7 @@ void UMapItemFinderSubsystem::RebuildResourceNodePins(UWorld* World)
 			continue;
 		}
 
-		Pin->InitializeResourceNodePin(Node);
+		Pin->InitializeResourceNodePin(World, Node);
 		RepManager->AddRepresentation(Pin);
 		ResourceNodePins.Add(Pin);
 	}
@@ -343,7 +343,7 @@ void UMapItemFinderSubsystem::RebuildPins(UWorld* World)
 			continue;
 		}
 
-		Pin->InitializePin(ActiveItemClass, Cluster);
+		Pin->InitializePin(World, ActiveItemClass, Cluster);
 		RepManager->AddRepresentation(Pin);
 		ActivePins.Add(Pin);
 	}
