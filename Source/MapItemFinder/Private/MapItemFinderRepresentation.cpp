@@ -7,14 +7,13 @@ namespace
 		switch (Kind)
 		{
 		case EMapFinderResultKind::Produced:
-			return FLinearColor(0.20f, 0.90f, 0.35f, 1.0f);
 		case EMapFinderResultKind::Extracted:
-			return FLinearColor(0.20f, 0.80f, 0.95f, 1.0f);
+			return FLinearColor::White;
 		case EMapFinderResultKind::DimensionalDepot:
-			return FLinearColor(0.75f, 0.35f, 1.00f, 1.0f);
+			return FLinearColor(0.88f, 0.72f, 1.00f, 1.0f);
 		case EMapFinderResultKind::Stored:
 		default:
-			return FLinearColor(1.00f, 0.65f, 0.10f, 1.0f);
+			return FLinearColor(1.00f, 0.85f, 0.55f, 1.0f);
 		}
 	}
 }
@@ -30,13 +29,24 @@ void UMapItemFinderRepresentation::InitializePin(
 	const FText ItemName = ItemClass ? UFGItemDescriptor::GetItemName(ItemClass) : FText::GetEmpty();
 	PinText = FText::FromString(FString::Printf(TEXT("%s — %s"), *ItemName.ToString(), *InCluster.Label));
 
+	UTexture2D* IconTexture = nullptr;
+	if (ItemClass)
+	{
+		IconTexture = UFGItemDescriptor::GetBigIcon(ItemClass);
+		if (!IconTexture)
+		{
+			IconTexture = UFGItemDescriptor::GetSmallIcon(ItemClass);
+		}
+	}
+
 	mIsLocal = true;
 	mIsStatic = true;
 	mLocalActorLocation = InCluster.Location;
 	mActorLocation = InCluster.Location;
+	mRepresentationTexture = IconTexture;
 	mRepresentationText = PinText;
 	mRepresentationColor = PinColor;
-	mRepresentationType = ERepresentationType::RT_MapMarker;
+	mRepresentationType = ERepresentationType::RT_Default;
 	mShouldShowOnMap = true;
 	mShouldShowInCompass = false;
 	mFogOfWarRevealType = EFogOfWarRevealType::FOWRT_None;
@@ -74,7 +84,7 @@ FLinearColor UMapItemFinderRepresentation::GetRepresentationColor() const
 
 ERepresentationType UMapItemFinderRepresentation::GetRepresentationType() const
 {
-	return ERepresentationType::RT_MapMarker;
+	return ERepresentationType::RT_Default;
 }
 
 bool UMapItemFinderRepresentation::GetShouldShowInCompass() const
@@ -89,5 +99,5 @@ bool UMapItemFinderRepresentation::GetShouldShowOnMap() const
 
 float UMapItemFinderRepresentation::GetScaleOnMap() const
 {
-	return 1.25f;
+	return 1.35f;
 }

@@ -21,7 +21,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnMapFinderProducedItemsUpdated,
-	const TArray<TSubclassOf<UFGItemDescriptor>>&,
+	const TArray<FMapFinderProducedItem>&,
 	bool /* bFromServer */);
 
 UCLASS()
@@ -39,7 +39,7 @@ public:
 	void RequestProducedItems(UWorld* World);
 	void HandleProducedItems(
 		int32 RequestId,
-		const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems,
+		const TArray<FMapFinderProducedItem>& ProducedItems,
 		bool bFromServer = true);
 
 	void RequestSearch(UWorld* World, TSubclassOf<UFGItemDescriptor> ItemClass);
@@ -57,7 +57,7 @@ public:
 	bool GetShowStored() const { return bShowStored; }
 	TSubclassOf<UFGItemDescriptor> GetActiveItemClass() const { return ActiveItemClass; }
 	const TArray<FMapFinderCluster>& GetLastResults() const { return LastResults; }
-	const TArray<TSubclassOf<UFGItemDescriptor>>& GetCachedProducedItems() const { return CachedProducedItems; }
+	const TArray<FMapFinderProducedItem>& GetCachedProducedItems() const { return CachedProducedItems; }
 
 	FOnMapFinderResultsUpdated OnResultsUpdated;
 	FOnMapFinderProducedItemsUpdated OnProducedItemsUpdated;
@@ -86,7 +86,7 @@ private:
 	TSubclassOf<UFGItemDescriptor> ActiveItemClass;
 
 	UPROPERTY()
-	TArray<TSubclassOf<UFGItemDescriptor>> CachedProducedItems;
+	TArray<FMapFinderProducedItem> CachedProducedItems;
 
 	TArray<FMapFinderCluster> LastResults;
 	int32 LastSearchRequestId = 0;

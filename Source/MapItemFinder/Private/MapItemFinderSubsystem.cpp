@@ -85,13 +85,13 @@ void UMapItemFinderSubsystem::RequestProducedItems(UWorld* World)
 		}
 	}
 
-	const TArray<TSubclassOf<UFGItemDescriptor>> LocalItems = FMapItemFinderScanner::ScanProducedItems(World);
+	const TArray<FMapFinderProducedItem> LocalItems = FMapItemFinderScanner::ScanProducedItems(World);
 	HandleProducedItems(RequestId, LocalItems, false);
 }
 
 void UMapItemFinderSubsystem::HandleProducedItems(
 	int32 RequestId,
-	const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems,
+	const TArray<FMapFinderProducedItem>& ProducedItems,
 	bool bFromServer)
 {
 	if (RequestId != LastProducedItemsRequestId)

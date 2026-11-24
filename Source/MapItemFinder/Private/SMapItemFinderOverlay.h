@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MapItemFinderTypes.h"
 #include "Resources/FGItemDescriptor.h"
+#include "Styling/SlateBrush.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
@@ -14,8 +15,12 @@ class STextBlock;
 
 struct FMapFinderItemEntry
 {
+	bool bIsHeader = false;
 	TSubclassOf<UFGItemDescriptor> ItemClass;
 	FString DisplayName;
+	FString CategoryName;
+	float CategoryPriority = 0.0f;
+	FSlateBrush IconBrush;
 };
 
 class SMapItemFinderOverlay : public SCompoundWidget
@@ -30,12 +35,12 @@ public:
 	virtual ~SMapItemFinderOverlay() override;
 
 private:
-	void RebuildProducedItemEntries(const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems);
+	void RebuildProducedItemEntries(const TArray<FMapFinderProducedItem>& ProducedItems);
 	void UpdateFilteredItems(const FString& Query, bool bOpenIfNonEmpty);
 	void SelectItem(const TSharedPtr<FMapFinderItemEntry>& Entry);
 
 	void HandleProducedItemsUpdated(
-		const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems,
+		const TArray<FMapFinderProducedItem>& ProducedItems,
 		bool bFromServer);
 	void HandleResultsUpdated(
 		TSubclassOf<UFGItemDescriptor> ItemClass,

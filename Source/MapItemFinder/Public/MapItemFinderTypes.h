@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/NetSerialization.h"
+#include "Resources/FGItemDescriptor.h"
 #include "MapItemFinderTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -35,4 +36,16 @@ struct MAPITEMFINDER_API FMapFinderCluster
 
 	UPROPERTY()
 	FString Label;
+};
+
+USTRUCT(BlueprintType)
+struct MAPITEMFINDER_API FMapFinderProducedItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TSubclassOf<UFGItemDescriptor> ItemClass;
+
+	UPROPERTY()
+	bool bFromManufacturer = false;
 };

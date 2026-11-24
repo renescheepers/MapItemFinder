@@ -20,13 +20,13 @@ void UMapItemFinderRCO::Server_RequestProducedItems_Implementation(int32 Request
 		return;
 	}
 
-	const TArray<TSubclassOf<UFGItemDescriptor>> ProducedItems = FMapItemFinderScanner::ScanProducedItems(World);
+	const TArray<FMapFinderProducedItem> ProducedItems = FMapItemFinderScanner::ScanProducedItems(World);
 	Client_ReceiveProducedItems(RequestId, ProducedItems);
 }
 
 void UMapItemFinderRCO::Client_ReceiveProducedItems_Implementation(
 	int32 RequestId,
-	const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems)
+	const TArray<FMapFinderProducedItem>& ProducedItems)
 {
 	UWorld* World = GetWorld();
 	if (!World)

@@ -20,7 +20,7 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_ReceiveProducedItems(
 		int32 RequestId,
-		const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems);
+		const TArray<FMapFinderProducedItem>& ProducedItems);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SearchItem(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId);

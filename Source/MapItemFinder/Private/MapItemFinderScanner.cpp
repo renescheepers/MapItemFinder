@@ -91,9 +91,9 @@ namespace
 	}
 }
 
-TArray<TSubclassOf<UFGItemDescriptor>> FMapItemFinderScanner::ScanProducedItems(UWorld* World)
+TArray<FMapFinderProducedItem> FMapItemFinderScanner::ScanProducedItems(UWorld* World)
 {
-	TArray<TSubclassOf<UFGItemDescriptor>> OutItems;
+	TArray<FMapFinderProducedItem> OutItems;
 	if (!World)
 	{
 		return OutItems;
@@ -105,7 +105,7 @@ TArray<TSubclassOf<UFGItemDescriptor>> FMapItemFinderScanner::ScanProducedItems(
 		return OutItems;
 	}
 
-	TSet<TSubclassOf<UFGItemDescriptor>> UniqueItems;
+	TMap<TSubclassOf<UFGItemDescriptor>, bool> ItemToIsCrafted;
 
 	TArray<AFGBuildableManufacturer*> Manufacturers;
 	BuildableSubsystem->GetTypedBuildable<AFGBuildableManufacturer>(Manufacturers);
@@ -127,7 +127,7 @@ TArray<TSubclassOf<UFGItemDescriptor>> FMapItemFinderScanner::ScanProducedItems(
 		{
 			if (Product.ItemClass)
 			{
-				UniqueItems.Add(Product.ItemClass);
+				ItemToIsCrafted.Add(Product.ItemClass, true);
 			}
 		}
 	}
@@ -146,12 +146,22 @@ TArray<TSubclassOf<UFGItemDescriptor>> FMapItemFinderScanner::ScanProducedItems(
 		{
 			if (TSubclassOf<UFGResourceDescriptor> ResourceClass = Resource->GetResourceClass())
 			{
-				UniqueItems.Add(ResourceClass);
+				if (!ItemToIsCrafted.Contains(ResourceClass))
+				{
+					ItemToIsCrafted.Add(ResourceClass, false);
+				}
 			}
 		}
 	}
 
-	OutItems = UniqueItems.Array();
+	OutItems.Reserve(ItemToIsCrafted.Num());
+	for (const TPair<TSubclassOf<UFGItemDescriptor>, bool>& Pair : ItemToIsCrafted)
+	{
+		FMapFinderProducedItem Entry;
+		Entry.ItemClass = Pair.Key;
+		Entry.bFromManufacturer = Pair.Value;
+		OutItems.Add(Entry);
+	}
 	return OutItems;
 }
 

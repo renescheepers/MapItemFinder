@@ -2,8 +2,10 @@
 
 #include "SMapItemFinderOverlay.h"
 
+#include "FGCategory.h"
 #include "MapItemFinderSubsystem.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -182,7 +184,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 
 						+ SVerticalBox::Slot()
 						.AutoHeight()
-						.MaxHeight(240.0f)
+						.MaxHeight(280.0f)
 						.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
 						[
 							SNew(SBox)
@@ -226,33 +228,80 @@ SMapItemFinderOverlay::~SMapItemFinderOverlay()
 }
 
 void SMapItemFinderOverlay::RebuildProducedItemEntries(
-	const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems)
+	const TArray<FMapFinderProducedItem>& ProducedItems)
 {
 	ProducedItemEntries.Empty();
 
 	TSet<TSubclassOf<UFGItemDescriptor>> Seen;
-	for (const TSubclassOf<UFGItemDescriptor>& Descriptor : ProducedItems)
+	for (const FMapFinderProducedItem& Item : ProducedItems)
 	{
-		if (!Descriptor || Seen.Contains(Descriptor))
+		if (!Item.ItemClass || Seen.Contains(Item.ItemClass))
 		{
 			continue;
 		}
-		Seen.Add(Descriptor);
+		Seen.Add(Item.ItemClass);
 
-		const FString Name = UFGItemDescriptor::GetItemName(Descriptor).ToString();
+		const FString Name = UFGItemDescriptor::GetItemName(Item.ItemClass).ToString();
 		if (Name.IsEmpty())
 		{
 			continue;
 		}
 
+		FString CategoryName;
+		float CategoryPriority = 500000.0f;
+
+		if (!Item.bFromManufacturer)
+		{
+			CategoryName = TEXT("Extracted Resources");
+			CategoryPriority = 999999.0f;
+		}
+		else if (TSubclassOf<UFGCategory> CategoryClass = UFGItemDescriptor::GetCategory(Item.ItemClass))
+		{
+			CategoryName = UFGCategory::GetCategoryName(CategoryClass).ToString();
+			CategoryPriority = UFGCategory::GetMenuPriority(CategoryClass);
+		}
+
+		if (CategoryName.IsEmpty())
+		{
+			CategoryName = TEXT("Other Recipes");
+		}
+
 		TSharedPtr<FMapFinderItemEntry> Entry = MakeShared<FMapFinderItemEntry>();
-		Entry->ItemClass = Descriptor;
+		Entry->bIsHeader = false;
+		Entry->ItemClass = Item.ItemClass;
 		Entry->DisplayName = Name;
+		Entry->CategoryName = CategoryName;
+		Entry->CategoryPriority = CategoryPriority;
+
+		UTexture2D* IconTex = UFGItemDescriptor::GetSmallIcon(Item.ItemClass);
+		if (!IconTex)
+		{
+			IconTex = UFGItemDescriptor::GetBigIcon(Item.ItemClass);
+		}
+		if (IconTex)
+		{
+			Entry->IconBrush.SetResourceObject(IconTex);
+			Entry->IconBrush.ImageSize = FVector2D(20.0, 20.0);
+			Entry->IconBrush.DrawAs = ESlateBrushDrawType::Image;
+		}
+		else
+		{
+			Entry->IconBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
+		}
+
 		ProducedItemEntries.Add(Entry);
 	}
 
 	ProducedItemEntries.Sort([](const TSharedPtr<FMapFinderItemEntry>& A, const TSharedPtr<FMapFinderItemEntry>& B)
 	{
+		if (!FMath::IsNearlyEqual(A->CategoryPriority, B->CategoryPriority))
+		{
+			return A->CategoryPriority < B->CategoryPriority;
+		}
+		if (A->CategoryName != B->CategoryName)
+		{
+			return A->CategoryName < B->CategoryName;
+		}
 		return A->DisplayName < B->DisplayName;
 	});
 
@@ -265,15 +314,35 @@ void SMapItemFinderOverlay::UpdateFilteredItems(const FString& Query, bool bOpen
 	FilteredItems.Empty();
 	const FString Trimmed = Query.TrimStartAndEnd();
 
+	FString LastCategory;
+	bool bHasAnyItem = false;
+
 	for (const TSharedPtr<FMapFinderItemEntry>& Entry : ProducedItemEntries)
 	{
-		if (Trimmed.IsEmpty() || Entry->DisplayName.Contains(Trimmed, ESearchCase::IgnoreCase))
+		const bool bMatches = Trimmed.IsEmpty()
+			|| Entry->DisplayName.Contains(Trimmed, ESearchCase::IgnoreCase)
+			|| Entry->CategoryName.Contains(Trimmed, ESearchCase::IgnoreCase);
+
+		if (!bMatches)
 		{
-			FilteredItems.Add(Entry);
+			continue;
 		}
+
+		if (Entry->CategoryName != LastCategory)
+		{
+			LastCategory = Entry->CategoryName;
+			TSharedPtr<FMapFinderItemEntry> Header = MakeShared<FMapFinderItemEntry>();
+			Header->bIsHeader = true;
+			Header->DisplayName = LastCategory;
+			Header->CategoryName = LastCategory;
+			FilteredItems.Add(Header);
+		}
+
+		FilteredItems.Add(Entry);
+		bHasAnyItem = true;
 	}
 
-	bDropdownOpen = bOpenIfNonEmpty && FilteredItems.Num() > 0;
+	bDropdownOpen = bOpenIfNonEmpty && bHasAnyItem;
 	if (ResultsListView.IsValid())
 	{
 		ResultsListView->RequestListRefresh();
@@ -282,7 +351,7 @@ void SMapItemFinderOverlay::UpdateFilteredItems(const FString& Query, bool bOpen
 
 void SMapItemFinderOverlay::SelectItem(const TSharedPtr<FMapFinderItemEntry>& Entry)
 {
-	if (!Entry.IsValid())
+	if (!Entry.IsValid() || Entry->bIsHeader)
 	{
 		return;
 	}
@@ -304,7 +373,7 @@ void SMapItemFinderOverlay::SelectItem(const TSharedPtr<FMapFinderItemEntry>& En
 }
 
 void SMapItemFinderOverlay::HandleProducedItemsUpdated(
-	const TArray<TSubclassOf<UFGItemDescriptor>>& ProducedItems,
+	const TArray<FMapFinderProducedItem>& ProducedItems,
 	bool bFromServer)
 {
 	RebuildProducedItemEntries(ProducedItems);
@@ -405,9 +474,16 @@ void SMapItemFinderOverlay::OnSearchTextChanged(const FText& NewText)
 
 void SMapItemFinderOverlay::OnSearchTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
-	if (CommitType == ETextCommit::OnEnter && FilteredItems.Num() > 0)
+	if (CommitType == ETextCommit::OnEnter)
 	{
-		SelectItem(FilteredItems[0]);
+		for (const TSharedPtr<FMapFinderItemEntry>& Entry : FilteredItems)
+		{
+			if (Entry.IsValid() && !Entry->bIsHeader)
+			{
+				SelectItem(Entry);
+				break;
+			}
+		}
 	}
 }
 
@@ -415,11 +491,49 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 	TSharedPtr<FMapFinderItemEntry> Entry,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
+	if (Entry.IsValid() && Entry->bIsHeader)
+	{
+		return SNew(STableRow<TSharedPtr<FMapFinderItemEntry>>, OwnerTable)
+			.IsEnabled(false)
+			.Padding(FMargin(4.0f, 6.0f, 4.0f, 2.0f))
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
+				.Padding(FMargin(6.0f, 2.0f))
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(Entry->DisplayName))
+					.ColorAndOpacity(FLinearColor(0.95f, 0.65f, 0.20f, 1.0f))
+				]
+			];
+	}
+
 	return SNew(STableRow<TSharedPtr<FMapFinderItemEntry>>, OwnerTable)
-		.Padding(FMargin(6.0f, 3.0f))
+		.Padding(FMargin(10.0f, 3.0f))
 		[
-			SNew(STextBlock)
-			.Text(FText::FromString(Entry.IsValid() ? Entry->DisplayName : TEXT("")))
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.0f, 0.0f, 8.0f, 0.0f))
+			[
+				SNew(SBox)
+				.WidthOverride(20.0f)
+				.HeightOverride(20.0f)
+				[
+					SNew(SImage)
+					.Image(Entry.IsValid() ? &Entry->IconBrush : nullptr)
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Entry.IsValid() ? Entry->DisplayName : TEXT("")))
+			]
 		];
 }
 
@@ -427,7 +541,7 @@ void SMapItemFinderOverlay::OnItemSelectionChanged(
 	TSharedPtr<FMapFinderItemEntry> Entry,
 	ESelectInfo::Type SelectInfo)
 {
-	if (SelectInfo != ESelectInfo::Direct && Entry.IsValid())
+	if (SelectInfo != ESelectInfo::Direct && Entry.IsValid() && !Entry->bIsHeader)
 	{
 		SelectItem(Entry);
 	}
