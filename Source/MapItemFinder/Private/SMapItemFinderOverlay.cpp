@@ -392,6 +392,18 @@ void SMapItemFinderOverlay::RebuildResourceNodeFilterBar(const TArray<FMapFinder
 		];
 	};
 
+	ResourceNodeFilterBox->AddSlot()
+	[
+		SNew(SButton)
+		.ContentPadding(FMargin(6.0f, 2.0f))
+		.ButtonColorAndOpacity(FSlateColor(FLinearColor(0.28f, 0.20f, 0.20f, 1.0f)))
+		.OnClicked(this, &SMapItemFinderOverlay::OnClearNodeResourceFilterClicked)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("None")))
+		]
+	];
+
 	AddFilterButton(TEXT("All"), nullptr);
 	for (const TPair<FString, TSubclassOf<UFGItemDescriptor>>& Pair : ResourceTypes)
 	{
@@ -582,6 +594,15 @@ FReply SMapItemFinderOverlay::OnSelectNodeResourceFilter(TSubclassOf<UFGItemDesc
 	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
 		Subsystem->ToggleResourceNodeFilter(WorldPtr.Get(), ResourceClass);
+	}
+	return FReply::Handled();
+}
+
+FReply SMapItemFinderOverlay::OnClearNodeResourceFilterClicked()
+{
+	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
+	{
+		Subsystem->ClearResourceNodeSelection(WorldPtr.Get());
 	}
 	return FReply::Handled();
 }

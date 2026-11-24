@@ -65,7 +65,10 @@ public:
 		bool bFromServer = true);
 
 	void SetShowResourceNodes(UWorld* World, bool bEnable);
+	void ToggleAllResourceNodes(UWorld* World);
+	void ClearResourceNodeSelection(UWorld* World);
 	void ToggleResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass);
+	bool IsAllResourceNodesSelected() const { return bShowAllResourceNodes; }
 	bool IsResourceNodeFilterSelected(TSubclassOf<UFGItemDescriptor> ResourceClass) const;
 	void ClearResourceNodePins(UWorld* World);
 
@@ -90,6 +93,7 @@ public:
 #endif
 
 private:
+	void RemoveActivePinsFromMap(UWorld* World);
 	void RebuildPins(UWorld* World);
 	void RebuildResourceNodePins(UWorld* World);
 
@@ -129,4 +133,5 @@ private:
 	bool bShowProduced = true;
 	bool bShowStored = true;
 	bool bShowResourceNodes = false;
+	bool bShowAllResourceNodes = false;
 };

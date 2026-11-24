@@ -55,6 +55,7 @@ private:
 	FReply OnToggleDropdownClicked();
 	FReply OnClearClicked();
 	FReply OnSelectNodeResourceFilter(TSubclassOf<UFGItemDescriptor> ResourceClass);
+	FReply OnClearNodeResourceFilterClicked();
 
 	void OnSearchTextChanged(const FText& NewText);
 	void OnSearchTextCommitted(const FText& NewText, ETextCommit::Type CommitType);

@@ -58,16 +58,25 @@ void UMapItemFinderSubsystem::SetFinderMode(UWorld* World, bool bEnableFinder)
 
 	if (!bFinderModeActive)
 	{
-		ClearPins(World);
+		RemoveActivePinsFromMap(World);
 		ClearResourceNodePins(World);
 		return;
 	}
 
 	if (World)
 	{
+		if (SelectedItemClasses.Num() > 0)
+		{
+			RebuildPins(World);
+			OnResultsUpdated.Broadcast(true);
+		}
 		RequestProducedItems(World);
 		if (bShowResourceNodes)
 		{
+			if (CachedResourceNodes.Num() > 0)
+			{
+				RebuildResourceNodePins(World);
+			}
 			RequestResourceNodes(World);
 		}
 	}
@@ -251,13 +260,40 @@ void UMapItemFinderSubsystem::SetShowResourceNodes(UWorld* World, bool bEnable)
 	}
 }
 
+void UMapItemFinderSubsystem::ToggleAllResourceNodes(UWorld* World)
+{
+	bShowAllResourceNodes = !bShowAllResourceNodes;
+	if (bShowAllResourceNodes)
+	{
+		SelectedNodeResourceFilters.Empty();
+	}
+
+	if (World && bFinderModeActive && bShowResourceNodes)
+	{
+		RebuildResourceNodePins(World);
+	}
+}
+
+void UMapItemFinderSubsystem::ClearResourceNodeSelection(UWorld* World)
+{
+	bShowAllResourceNodes = false;
+	SelectedNodeResourceFilters.Empty();
+	if (World)
+	{
+		ClearResourceNodePins(World);
+	}
+}
+
 void UMapItemFinderSubsystem::ToggleResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass)
 {
 	if (!ResourceClass)
 	{
-		SelectedNodeResourceFilters.Empty();
+		ToggleAllResourceNodes(World);
+		return;
 	}
-	else if (SelectedNodeResourceFilters.Contains(ResourceClass))
+
+	bShowAllResourceNodes = false;
+	if (SelectedNodeResourceFilters.Contains(ResourceClass))
 	{
 		SelectedNodeResourceFilters.Remove(ResourceClass);
 	}
@@ -276,9 +312,9 @@ bool UMapItemFinderSubsystem::IsResourceNodeFilterSelected(TSubclassOf<UFGItemDe
 {
 	if (!ResourceClass)
 	{
-		return SelectedNodeResourceFilters.Num() == 0;
+		return bShowAllResourceNodes;
 	}
-	return SelectedNodeResourceFilters.Contains(ResourceClass);
+	return bShowAllResourceNodes || SelectedNodeResourceFilters.Contains(ResourceClass);
 }
 
 void UMapItemFinderSubsystem::ClearResourceNodePins(UWorld* World)
@@ -309,14 +345,18 @@ void UMapItemFinderSubsystem::RebuildResourceNodePins(UWorld* World)
 
 	ClearResourceNodePins(World);
 
-	const bool bFilterActive = SelectedNodeResourceFilters.Num() > 0;
+	if (!bShowAllResourceNodes && SelectedNodeResourceFilters.Num() == 0)
+	{
+		return;
+	}
+
 	for (const FMapFinderResourceNode& Node : CachedResourceNodes)
 	{
 		if (!Node.ResourceClass)
 		{
 			continue;
 		}
-		if (bFilterActive && !SelectedNodeResourceFilters.Contains(Node.ResourceClass))
+		if (!bShowAllResourceNodes && !SelectedNodeResourceFilters.Contains(Node.ResourceClass))
 		{
 			continue;
 		}
@@ -343,7 +383,7 @@ void UMapItemFinderSubsystem::SetFilters(UWorld* World, bool bInShowProduced, bo
 	}
 }
 
-void UMapItemFinderSubsystem::ClearPins(UWorld* World)
+void UMapItemFinderSubsystem::RemoveActivePinsFromMap(UWorld* World)
 {
 	if (World)
 	{
@@ -359,6 +399,11 @@ void UMapItemFinderSubsystem::ClearPins(UWorld* World)
 		}
 	}
 	ActivePins.Empty();
+}
+
+void UMapItemFinderSubsystem::ClearPins(UWorld* World)
+{
+	RemoveActivePinsFromMap(World);
 	SelectedItemClasses.Empty();
 	ResultsByItem.Empty();
 	ItemRequestIds.Empty();
