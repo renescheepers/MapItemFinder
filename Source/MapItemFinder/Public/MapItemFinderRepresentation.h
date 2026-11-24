@@ -13,6 +13,7 @@ class MAPITEMFINDER_API UMapItemFinderRepresentation : public UFGActorRepresenta
 
 public:
 	void InitializePin(TSubclassOf<UFGItemDescriptor> InItemClass, const FMapFinderCluster& InCluster);
+	void InitializeResourceNodePin(const FMapFinderResourceNode& InNode);
 
 	virtual FVector GetActorLocation() const override;
 	virtual UTexture2D* GetRepresentationTexture() const override;
@@ -29,5 +30,6 @@ private:
 
 	EMapFinderResultKind ResultKind = EMapFinderResultKind::Produced;
 	FText PinText;
-	FLinearColor PinColor = FLinearColor::Green;
+	FLinearColor PinColor = FLinearColor::White;
+	float PinScale = 1.35f;
 };

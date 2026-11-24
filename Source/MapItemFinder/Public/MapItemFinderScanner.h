@@ -9,6 +9,8 @@ class MAPITEMFINDER_API FMapItemFinderScanner
 public:
 	static TArray<FMapFinderProducedItem> ScanProducedItems(UWorld* World);
 
+	static TArray<FMapFinderResourceNode> ScanResourceNodes(UWorld* World);
+
 	static TArray<FMapFinderCluster> ScanWorldForItem(
 		UWorld* World,
 		TSubclassOf<UFGItemDescriptor> ItemClass,

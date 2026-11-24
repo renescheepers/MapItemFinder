@@ -43,6 +43,55 @@ void UMapItemFinderRCO::Client_ReceiveProducedItems_Implementation(
 	}
 }
 
+void UMapItemFinderRCO::Server_RequestResourceNodes_Implementation(int32 RequestId)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TArray<FMapFinderResourceNode> AllNodes = FMapItemFinderScanner::ScanResourceNodes(World);
+	constexpr int32 ChunkSize = 120;
+
+	if (AllNodes.Num() == 0)
+	{
+		Client_ReceiveResourceNodesChunk(RequestId, AllNodes, true, true);
+		return;
+	}
+
+	for (int32 Start = 0; Start < AllNodes.Num(); Start += ChunkSize)
+	{
+		const int32 Count = FMath::Min(ChunkSize, AllNodes.Num() - Start);
+		TArray<FMapFinderResourceNode> Chunk;
+		Chunk.Append(AllNodes.GetData() + Start, Count);
+		const bool bReset = (Start == 0);
+		const bool bIsFinal = (Start + Count >= AllNodes.Num());
+		Client_ReceiveResourceNodesChunk(RequestId, Chunk, bReset, bIsFinal);
+	}
+}
+
+void UMapItemFinderRCO::Client_ReceiveResourceNodesChunk_Implementation(
+	int32 RequestId,
+	const TArray<FMapFinderResourceNode>& NodesChunk,
+	bool bReset,
+	bool bIsFinal)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		if (UMapItemFinderSubsystem* Subsystem = GameInstance->GetSubsystem<UMapItemFinderSubsystem>())
+		{
+			Subsystem->HandleResourceNodesChunk(World, RequestId, NodesChunk, bReset, bIsFinal, true);
+		}
+	}
+}
+
 bool UMapItemFinderRCO::Server_SearchItem_Validate(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId)
 {
 	return ItemClass != nullptr;

@@ -47,6 +47,7 @@ void UMapItemFinderSubsystem::Deinitialize()
 	if (UWorld* World = GetWorld())
 	{
 		ClearPins(World);
+		ClearResourceNodePins(World);
 	}
 	Super::Deinitialize();
 }
@@ -58,12 +59,17 @@ void UMapItemFinderSubsystem::SetFinderMode(UWorld* World, bool bEnableFinder)
 	if (!bFinderModeActive)
 	{
 		ClearPins(World);
+		ClearResourceNodePins(World);
 		return;
 	}
 
 	if (World)
 	{
 		RequestProducedItems(World);
+		if (bShowResourceNodes)
+		{
+			RequestResourceNodes(World);
+		}
 	}
 }
 
@@ -142,6 +148,136 @@ void UMapItemFinderSubsystem::HandleSearchResults(
 	LastResults = Results;
 	RebuildPins(World);
 	OnResultsUpdated.Broadcast(ItemClass, LastResults, bFromServer);
+}
+
+void UMapItemFinderSubsystem::RequestResourceNodes(UWorld* World)
+{
+	if (!World)
+	{
+		return;
+	}
+
+	const int32 RequestId = ++LastResourceNodesRequestId;
+
+	if (AFGPlayerController* PC = Cast<AFGPlayerController>(World->GetFirstPlayerController()))
+	{
+		if (UMapItemFinderRCO* RCO = PC->GetRemoteCallObjectOfClass<UMapItemFinderRCO>())
+		{
+			RCO->Server_RequestResourceNodes(RequestId);
+			return;
+		}
+	}
+
+	const TArray<FMapFinderResourceNode> LocalNodes = FMapItemFinderScanner::ScanResourceNodes(World);
+	HandleResourceNodesChunk(World, RequestId, LocalNodes, true, true, false);
+}
+
+void UMapItemFinderSubsystem::HandleResourceNodesChunk(
+	UWorld* World,
+	int32 RequestId,
+	const TArray<FMapFinderResourceNode>& NodesChunk,
+	bool bReset,
+	bool bIsFinal,
+	bool bFromServer)
+{
+	if (!World || RequestId != LastResourceNodesRequestId)
+	{
+		return;
+	}
+
+	if (bReset)
+	{
+		CachedResourceNodes.Empty();
+	}
+	CachedResourceNodes.Append(NodesChunk);
+
+	if (bIsFinal)
+	{
+		if (bFinderModeActive && bShowResourceNodes)
+		{
+			RebuildResourceNodePins(World);
+		}
+		OnResourceNodesUpdated.Broadcast(CachedResourceNodes, bFromServer);
+	}
+}
+
+void UMapItemFinderSubsystem::SetShowResourceNodes(UWorld* World, bool bEnable)
+{
+	bShowResourceNodes = bEnable;
+	if (!bShowResourceNodes)
+	{
+		ClearResourceNodePins(World);
+		return;
+	}
+
+	if (World && bFinderModeActive)
+	{
+		if (CachedResourceNodes.Num() > 0)
+		{
+			RebuildResourceNodePins(World);
+		}
+		RequestResourceNodes(World);
+	}
+}
+
+void UMapItemFinderSubsystem::SetResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass)
+{
+	SelectedNodeResourceFilter = ResourceClass;
+	if (World && bFinderModeActive && bShowResourceNodes)
+	{
+		RebuildResourceNodePins(World);
+	}
+}
+
+void UMapItemFinderSubsystem::ClearResourceNodePins(UWorld* World)
+{
+	if (World)
+	{
+		if (AFGActorRepresentationManager* RepManager = AFGActorRepresentationManager::Get(World))
+		{
+			for (UMapItemFinderRepresentation* Pin : ResourceNodePins)
+			{
+				if (IsValid(Pin))
+				{
+					RepManager->RemoveRepresentation(Pin);
+				}
+			}
+		}
+	}
+	ResourceNodePins.Empty();
+}
+
+void UMapItemFinderSubsystem::RebuildResourceNodePins(UWorld* World)
+{
+	AFGActorRepresentationManager* RepManager = AFGActorRepresentationManager::Get(World);
+	if (!RepManager)
+	{
+		return;
+	}
+
+	ClearResourceNodePins(World);
+
+	for (const FMapFinderResourceNode& Node : CachedResourceNodes)
+	{
+		if (!Node.ResourceClass)
+		{
+			continue;
+		}
+		if (SelectedNodeResourceFilter && Node.ResourceClass != SelectedNodeResourceFilter)
+		{
+			continue;
+		}
+
+		UMapItemFinderRepresentation* Pin = NewObject<UMapItemFinderRepresentation>(RepManager);
+		if (!Pin)
+		{
+			continue;
+		}
+
+		Pin->InitializeResourceNodePin(Node);
+		RepManager->AddRepresentation(Pin);
+		ResourceNodePins.Add(Pin);
+	}
 }
 
 void UMapItemFinderSubsystem::SetFilters(UWorld* World, bool bInShowProduced, bool bInShowStored)
@@ -311,6 +447,10 @@ void UMapItemFinderSubsystem::HandleMapOpened(UFGMapWidget* MapWidget)
 	if (bFinderModeActive)
 	{
 		RequestProducedItems(World);
+		if (bShowResourceNodes)
+		{
+			RequestResourceNodes(World);
+		}
 	}
 }
 

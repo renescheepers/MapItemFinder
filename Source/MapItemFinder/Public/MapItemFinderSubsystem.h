@@ -24,6 +24,11 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(
 	const TArray<FMapFinderProducedItem>&,
 	bool /* bFromServer */);
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(
+	FOnMapFinderResourceNodesUpdated,
+	const TArray<FMapFinderResourceNode>&,
+	bool /* bFromServer */);
+
 UCLASS()
 class MAPITEMFINDER_API UMapItemFinderSubsystem : public UGameInstanceSubsystem
 {
@@ -50,17 +55,34 @@ public:
 		const TArray<FMapFinderCluster>& Results,
 		bool bFromServer = true);
 
+	void RequestResourceNodes(UWorld* World);
+	void HandleResourceNodesChunk(
+		UWorld* World,
+		int32 RequestId,
+		const TArray<FMapFinderResourceNode>& NodesChunk,
+		bool bReset,
+		bool bIsFinal,
+		bool bFromServer = true);
+
+	void SetShowResourceNodes(UWorld* World, bool bEnable);
+	void SetResourceNodeFilter(UWorld* World, TSubclassOf<UFGItemDescriptor> ResourceClass);
+	void ClearResourceNodePins(UWorld* World);
+
 	void SetFilters(UWorld* World, bool bInShowProduced, bool bInShowStored);
 	void ClearPins(UWorld* World);
 
 	bool GetShowProduced() const { return bShowProduced; }
 	bool GetShowStored() const { return bShowStored; }
+	bool GetShowResourceNodes() const { return bShowResourceNodes; }
+	TSubclassOf<UFGItemDescriptor> GetSelectedNodeResourceFilter() const { return SelectedNodeResourceFilter; }
 	TSubclassOf<UFGItemDescriptor> GetActiveItemClass() const { return ActiveItemClass; }
 	const TArray<FMapFinderCluster>& GetLastResults() const { return LastResults; }
 	const TArray<FMapFinderProducedItem>& GetCachedProducedItems() const { return CachedProducedItems; }
+	const TArray<FMapFinderResourceNode>& GetCachedResourceNodes() const { return CachedResourceNodes; }
 
 	FOnMapFinderResultsUpdated OnResultsUpdated;
 	FOnMapFinderProducedItemsUpdated OnProducedItemsUpdated;
+	FOnMapFinderResourceNodesUpdated OnResourceNodesUpdated;
 
 #if !UE_SERVER
 	void HandleMapOpened(UFGMapWidget* MapWidget);
@@ -69,6 +91,7 @@ public:
 
 private:
 	void RebuildPins(UWorld* World);
+	void RebuildResourceNodePins(UWorld* World);
 
 #if !UE_SERVER
 	void InstallMapHooks();
@@ -83,15 +106,26 @@ private:
 	TArray<TObjectPtr<UMapItemFinderRepresentation>> ActivePins;
 
 	UPROPERTY()
+	TArray<TObjectPtr<UMapItemFinderRepresentation>> ResourceNodePins;
+
+	UPROPERTY()
 	TSubclassOf<UFGItemDescriptor> ActiveItemClass;
+
+	UPROPERTY()
+	TSubclassOf<UFGItemDescriptor> SelectedNodeResourceFilter;
 
 	UPROPERTY()
 	TArray<FMapFinderProducedItem> CachedProducedItems;
 
+	UPROPERTY()
+	TArray<FMapFinderResourceNode> CachedResourceNodes;
+
 	TArray<FMapFinderCluster> LastResults;
 	int32 LastSearchRequestId = 0;
 	int32 LastProducedItemsRequestId = 0;
+	int32 LastResourceNodesRequestId = 0;
 	bool bFinderModeActive = false;
 	bool bShowProduced = true;
 	bool bShowStored = true;
+	bool bShowResourceNodes = false;
 };

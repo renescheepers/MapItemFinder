@@ -49,3 +49,21 @@ struct MAPITEMFINDER_API FMapFinderProducedItem
 	UPROPERTY()
 	bool bFromManufacturer = false;
 };
+
+USTRUCT(BlueprintType)
+struct MAPITEMFINDER_API FMapFinderResourceNode
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FVector_NetQuantize Location = FVector::ZeroVector;
+
+	UPROPERTY()
+	TSubclassOf<UFGItemDescriptor> ResourceClass;
+
+	UPROPERTY()
+	uint8 Purity = 3;
+
+	UPROPERTY()
+	bool bOccupied = false;
+};

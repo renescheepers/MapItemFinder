@@ -1,5 +1,6 @@
 #include "MapItemFinderScanner.h"
 
+#include "EngineUtils.h"
 #include "FGBuildableSubsystem.h"
 #include "FGInventoryComponent.h"
 #include "FGRecipe.h"
@@ -9,6 +10,10 @@
 #include "Buildables/FGBuildableStorage.h"
 #include "Buildables/FGCentralStorageContainer.h"
 #include "Resources/FGExtractableResourceInterface.h"
+#include "Resources/FGResourceDeposit.h"
+#include "Resources/FGResourceNode.h"
+#include "Resources/FGResourceNodeBase.h"
+#include "Resources/FGResourceNodeFrackingSatellite.h"
 
 namespace
 {
@@ -163,6 +168,48 @@ TArray<FMapFinderProducedItem> FMapItemFinderScanner::ScanProducedItems(UWorld* 
 		OutItems.Add(Entry);
 	}
 	return OutItems;
+}
+
+TArray<FMapFinderResourceNode> FMapItemFinderScanner::ScanResourceNodes(UWorld* World)
+{
+	TArray<FMapFinderResourceNode> OutNodes;
+	if (!World)
+	{
+		return OutNodes;
+	}
+
+	for (TActorIterator<AFGResourceNodeBase> It(World); It; ++It)
+	{
+		AFGResourceNodeBase* Node = *It;
+		if (!IsValid(Node) || Node->IsA<AFGResourceDeposit>() || Node->IsA<AFGResourceNodeFrackingSatellite>())
+		{
+			continue;
+		}
+
+		const TSubclassOf<UFGResourceDescriptor> ResourceClass = Node->GetResourceClass();
+		if (!ResourceClass)
+		{
+			continue;
+		}
+
+		FMapFinderResourceNode Entry;
+		Entry.Location = Node->GetActorLocation();
+		Entry.ResourceClass = ResourceClass;
+		Entry.bOccupied = Node->IsOccupied();
+
+		if (AFGResourceNode* ConcreteNode = Cast<AFGResourceNode>(Node))
+		{
+			Entry.Purity = static_cast<uint8>(ConcreteNode->GetResourcePurity());
+		}
+		else
+		{
+			Entry.Purity = 3;
+		}
+
+		OutNodes.Add(Entry);
+	}
+
+	return OutNodes;
 }
 
 TArray<FMapFinderCluster> FMapItemFinderScanner::ScanWorldForItem(

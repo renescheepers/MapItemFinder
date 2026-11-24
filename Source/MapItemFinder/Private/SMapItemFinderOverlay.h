@@ -12,6 +12,7 @@
 class UMapItemFinderSubsystem;
 class SEditableTextBox;
 class STextBlock;
+class SWrapBox;
 
 struct FMapFinderItemEntry
 {
@@ -36,11 +37,15 @@ public:
 
 private:
 	void RebuildProducedItemEntries(const TArray<FMapFinderProducedItem>& ProducedItems);
+	void RebuildResourceNodeFilterBar(const TArray<FMapFinderResourceNode>& Nodes);
 	void UpdateFilteredItems(const FString& Query, bool bOpenIfNonEmpty);
 	void SelectItem(const TSharedPtr<FMapFinderItemEntry>& Entry);
 
 	void HandleProducedItemsUpdated(
 		const TArray<FMapFinderProducedItem>& ProducedItems,
+		bool bFromServer);
+	void HandleResourceNodesUpdated(
+		const TArray<FMapFinderResourceNode>& Nodes,
 		bool bFromServer);
 	void HandleResultsUpdated(
 		TSubclassOf<UFGItemDescriptor> ItemClass,
@@ -51,6 +56,7 @@ private:
 	FReply OnFinderModeClicked();
 	FReply OnToggleDropdownClicked();
 	FReply OnClearClicked();
+	FReply OnSelectNodeResourceFilter(TSubclassOf<UFGItemDescriptor> ResourceClass);
 
 	void OnSearchTextChanged(const FText& NewText);
 	void OnSearchTextCommitted(const FText& NewText, ETextCommit::Type CommitType);
@@ -60,16 +66,20 @@ private:
 	void OnItemSelectionChanged(TSharedPtr<FMapFinderItemEntry> Entry, ESelectInfo::Type SelectInfo);
 	void OnProducedCheckChanged(ECheckBoxState NewState);
 	void OnStoredCheckChanged(ECheckBoxState NewState);
+	void OnResourceNodesCheckChanged(ECheckBoxState NewState);
 
 	EVisibility GetFinderPanelVisibility() const;
 	EVisibility GetDropdownVisibility() const;
+	EVisibility GetResourceNodeFilterVisibility() const;
 	FSlateColor GetNormalButtonColor() const;
 	FSlateColor GetFinderButtonColor() const;
+	FSlateColor GetNodeFilterButtonColor(TSubclassOf<UFGItemDescriptor> ResourceClass) const;
 
 	TWeakObjectPtr<UWorld> WorldPtr;
 	TWeakObjectPtr<UMapItemFinderSubsystem> SubsystemPtr;
 	FDelegateHandle ResultsDelegateHandle;
 	FDelegateHandle ProducedItemsDelegateHandle;
+	FDelegateHandle ResourceNodesDelegateHandle;
 
 	TArray<TSharedPtr<FMapFinderItemEntry>> ProducedItemEntries;
 	TArray<TSharedPtr<FMapFinderItemEntry>> FilteredItems;
@@ -77,6 +87,7 @@ private:
 	TSharedPtr<SEditableTextBox> SearchBox;
 	TSharedPtr<SListView<TSharedPtr<FMapFinderItemEntry>>> ResultsListView;
 	TSharedPtr<STextBlock> StatusText;
+	TSharedPtr<SWrapBox> ResourceNodeFilterBox;
 
 	bool bDropdownOpen = false;
 };

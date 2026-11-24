@@ -22,6 +22,16 @@ public:
 		int32 RequestId,
 		const TArray<FMapFinderProducedItem>& ProducedItems);
 
+	UFUNCTION(Server, Reliable)
+	void Server_RequestResourceNodes(int32 RequestId);
+
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveResourceNodesChunk(
+		int32 RequestId,
+		const TArray<FMapFinderResourceNode>& NodesChunk,
+		bool bReset,
+		bool bIsFinal);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SearchItem(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId);
 

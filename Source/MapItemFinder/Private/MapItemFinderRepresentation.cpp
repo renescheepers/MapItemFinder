@@ -39,10 +39,61 @@ void UMapItemFinderRepresentation::InitializePin(
 		}
 	}
 
+	PinScale = 1.35f;
+
 	mIsLocal = true;
 	mIsStatic = true;
 	mLocalActorLocation = InCluster.Location;
 	mActorLocation = InCluster.Location;
+	mRepresentationTexture = IconTexture;
+	mRepresentationText = PinText;
+	mRepresentationColor = PinColor;
+	mRepresentationType = ERepresentationType::RT_Default;
+	mShouldShowOnMap = true;
+	mShouldShowInCompass = false;
+	mFogOfWarRevealType = EFogOfWarRevealType::FOWRT_None;
+	SetIsOnClient(true);
+	SetRepresentationID(FGuid::NewGuid());
+}
+
+void UMapItemFinderRepresentation::InitializeResourceNodePin(const FMapFinderResourceNode& InNode)
+{
+	ItemClass = InNode.ResourceClass;
+	PinScale = 0.95f;
+	PinColor = InNode.bOccupied
+		? FLinearColor(0.55f, 0.55f, 0.55f, 1.0f)
+		: FLinearColor::White;
+
+	const FString ResourceName = ItemClass
+		? UFGItemDescriptor::GetItemName(ItemClass).ToString()
+		: TEXT("Resource");
+
+	const TCHAR* PurityText = TEXT("Well");
+	switch (InNode.Purity)
+	{
+	case 0: PurityText = TEXT("Impure"); break;
+	case 1: PurityText = TEXT("Normal"); break;
+	case 2: PurityText = TEXT("Pure"); break;
+	default: break;
+	}
+
+	const TCHAR* StateText = InNode.bOccupied ? TEXT("Occupied") : TEXT("Free");
+	PinText = FText::FromString(FString::Printf(TEXT("%s — %s (%s)"), *ResourceName, PurityText, StateText));
+
+	UTexture2D* IconTexture = nullptr;
+	if (ItemClass)
+	{
+		IconTexture = UFGItemDescriptor::GetBigIcon(ItemClass);
+		if (!IconTexture)
+		{
+			IconTexture = UFGItemDescriptor::GetSmallIcon(ItemClass);
+		}
+	}
+
+	mIsLocal = true;
+	mIsStatic = true;
+	mLocalActorLocation = InNode.Location;
+	mActorLocation = InNode.Location;
 	mRepresentationTexture = IconTexture;
 	mRepresentationText = PinText;
 	mRepresentationColor = PinColor;
@@ -99,5 +150,5 @@ bool UMapItemFinderRepresentation::GetShouldShowOnMap() const
 
 float UMapItemFinderRepresentation::GetScaleOnMap() const
 {
-	return 1.35f;
+	return PinScale;
 }
