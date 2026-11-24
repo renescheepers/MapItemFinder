@@ -216,16 +216,45 @@ void UMapItemFinderSubsystem::RebuildPins(UWorld* World)
 #if !UE_SERVER
 namespace
 {
-	// Exposes protected UFGMapWidget virtuals for SML's SUBSCRIBE_METHOD_VIRTUAL_AFTER
+	// Exposes protected UFGMapWidget virtuals for SML's RegisterHookFunction
 	struct FMapWidgetProtectedAccess : public UFGMapWidget
 	{
 		using UFGMapWidget::NativeConstruct;
 		using UFGMapWidget::NativeDestruct;
 	};
+
+	TWeakObjectPtr<UMapItemFinderSubsystem> GMapFinderHookSubsystem;
+	void (*GOriginalMapNativeConstruct)(UFGMapWidget*) = nullptr;
+	void (*GOriginalMapNativeDestruct)(UFGMapWidget*) = nullptr;
+
+	void Hook_MapNativeConstruct(UFGMapWidget* MapWidget)
+	{
+		if (GOriginalMapNativeConstruct)
+		{
+			GOriginalMapNativeConstruct(MapWidget);
+		}
+		if (GMapFinderHookSubsystem.IsValid())
+		{
+			GMapFinderHookSubsystem->HandleMapOpened(MapWidget);
+		}
+	}
+
+	void Hook_MapNativeDestruct(UFGMapWidget* MapWidget)
+	{
+		if (GOriginalMapNativeDestruct)
+		{
+			GOriginalMapNativeDestruct(MapWidget);
+		}
+		if (GMapFinderHookSubsystem.IsValid())
+		{
+			GMapFinderHookSubsystem->HandleMapClosed(MapWidget);
+		}
+	}
 }
 
 void UMapItemFinderSubsystem::InstallMapHooks()
 {
+	GMapFinderHookSubsystem = this;
 	if (bHooksInstalled)
 	{
 		return;
@@ -238,25 +267,23 @@ void UMapItemFinderSubsystem::InstallMapHooks()
 		return;
 	}
 
-	TWeakObjectPtr<UMapItemFinderSubsystem> WeakThis(this);
+	using FMapWidgetVoidFn = void (UFGMapWidget::*)();
 
-	SUBSCRIBE_METHOD_VIRTUAL_AFTER(FMapWidgetProtectedAccess::NativeConstruct, MapCDO,
-		[WeakThis](UFGMapWidget* MapWidget)
-		{
-			if (WeakThis.IsValid())
-			{
-				WeakThis->HandleMapOpened(MapWidget);
-			}
-		});
+	FMapWidgetVoidFn NativeConstructPtr = &FMapWidgetProtectedAccess::NativeConstruct;
+	FNativeHookManagerInternal::RegisterHookFunction(
+		TEXT("UFGMapWidget::NativeConstruct"),
+		ConvertFunctionPointer(NativeConstructPtr),
+		MapCDO,
+		reinterpret_cast<void*>(&Hook_MapNativeConstruct),
+		reinterpret_cast<void**>(&GOriginalMapNativeConstruct));
 
-	SUBSCRIBE_METHOD_VIRTUAL_AFTER(FMapWidgetProtectedAccess::NativeDestruct, MapCDO,
-		[WeakThis](UFGMapWidget* MapWidget)
-		{
-			if (WeakThis.IsValid())
-			{
-				WeakThis->HandleMapClosed(MapWidget);
-			}
-		});
+	FMapWidgetVoidFn NativeDestructPtr = &FMapWidgetProtectedAccess::NativeDestruct;
+	FNativeHookManagerInternal::RegisterHookFunction(
+		TEXT("UFGMapWidget::NativeDestruct"),
+		ConvertFunctionPointer(NativeDestructPtr),
+		MapCDO,
+		reinterpret_cast<void*>(&Hook_MapNativeDestruct),
+		reinterpret_cast<void**>(&GOriginalMapNativeDestruct));
 }
 
 void UMapItemFinderSubsystem::HandleMapOpened(UFGMapWidget* MapWidget)

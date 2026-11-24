@@ -62,13 +62,16 @@ public:
 	FOnMapFinderResultsUpdated OnResultsUpdated;
 	FOnMapFinderProducedItemsUpdated OnProducedItemsUpdated;
 
+#if !UE_SERVER
+	void HandleMapOpened(UFGMapWidget* MapWidget);
+	void HandleMapClosed(UFGMapWidget* MapWidget);
+#endif
+
 private:
 	void RebuildPins(UWorld* World);
 
 #if !UE_SERVER
 	void InstallMapHooks();
-	void HandleMapOpened(UFGMapWidget* MapWidget);
-	void HandleMapClosed(UFGMapWidget* MapWidget);
 	void RemoveOverlayFromViewport();
 
 	TSharedPtr<SMapItemFinderOverlay> ActiveOverlay;

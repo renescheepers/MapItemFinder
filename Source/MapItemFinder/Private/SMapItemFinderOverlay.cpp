@@ -425,7 +425,7 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 
 void SMapItemFinderOverlay::OnItemSelectionChanged(
 	TSharedPtr<FMapFinderItemEntry> Entry,
-	ESelectionInfo::Type SelectInfo)
+	ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct && Entry.IsValid())
 	{
