@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="42%" r="68%">
+      <stop offset="0%" stop-color="#1d2738"/>
+      <stop offset="65%" stop-color="#121824"/>
+      <stop offset="100%" stop-color="#0a0e16"/>
+    </radialGradient>
+
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb35c"/>
+      <stop offset="50%" stop-color="#fa9549"/>
+      <stop offset="100%" stop-color="#d96514"/>
+    </linearGradient>
+
+    <linearGradient id="lensGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c2a3e"/>
+      <stop offset="100%" stop-color="#0d141f"/>
+    </linearGradient>
+
+    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="55%" stop-color="#dbe4f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+
+    <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fa9549" stop-opacity="0.28"/>
+      <stop offset="65%" stop-color="#fa9549" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#fa9549" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <clipPath id="roundedClip">
+      <rect x="0" y="0" width="512" height="512"/>
+    </clipPath>
+  </defs>
+
+  <!-- Full-bleed base tile (clean in both square and rounded masks on ficsit.app / SMM) -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#bgGrad)"/>
+
+  <!-- Clipped map & radar background -->
+  <g clip-path="url(#roundedClip)">
+    <!-- Subtle tactical grid -->
+    <g stroke="#243247" stroke-width="1.5" opacity="0.65">
+      <line x1="80" y1="16" x2="80" y2="496"/>
+      <line x1="144" y1="16" x2="144" y2="496"/>
+      <line x1="208" y1="16" x2="208" y2="496"/>
+      <line x1="272" y1="16" x2="272" y2="496"/>
+      <line x1="336" y1="16" x2="336" y2="496"/>
+      <line x1="400" y1="16" x2="400" y2="496"/>
+      <line x1="464" y1="16" x2="464" y2="496"/>
+      <line x1="16" y1="80" x2="496" y2="80"/>
+      <line x1="16" y1="144" x2="496" y2="144"/>
+      <line x1="16" y1="208" x2="496" y2="208"/>
+      <line x1="16" y1="272" x2="496" y2="272"/>
+      <line x1="16" y1="336" x2="496" y2="336"/>
+      <line x1="16" y1="400" x2="496" y2="400"/>
+      <line x1="16" y1="464" x2="496" y2="464"/>
+    </g>
+
+    <!-- Topographic map contour lines -->
+    <g fill="none" stroke="#2d4059" stroke-width="2.5" opacity="0.75">
+      <path d="M -20 130 C 70 90, 140 165, 220 120 C 310 70, 390 140, 530 100"/>
+      <path d="M -20 195 C 90 155, 165 230, 260 185 C 350 145, 420 215, 530 175"/>
+      <path d="M -20 365 C 85 330, 165 415, 275 375 C 365 340, 425 405, 530 355"/>
+      <path d="M -20 425 C 100 395, 195 470, 310 430 C 395 400, 450 455, 530 425"/>
+      <ellipse cx="105" cy="395" rx="68" ry="38"/>
+      <ellipse cx="420" cy="115" rx="74" ry="42"/>
+    </g>
+
+    <!-- Ambient warm glow behind main pin -->
+    <circle cx="256" cy="230" r="195" fill="url(#radarGlow)"/>
+
+    <!-- Radar range rings around pin tip -->
+    <ellipse cx="256" cy="402" rx="110" ry="30" fill="none" stroke="#fa9549" stroke-width="2.5" opacity="0.45"/>
+    <ellipse cx="256" cy="402" rx="62" ry="16" fill="none" stroke="#fa9549" stroke-width="3" opacity="0.75"/>
+    <ellipse cx="256" cy="402" rx="18" ry="6" fill="#fa9549" opacity="0.85"/>
+
+    <!-- Background satellite map markers (Produced = green, Stored = amber, Node = cyan) -->
+    <!-- Produced marker (top-left) -->
+    <g filter="url(#softGlow)">
+      <circle cx="104" cy="128" r="20" fill="#35e665" opacity="0.22"/>
+      <circle cx="104" cy="128" r="9.5" fill="#35e665" stroke="#0c111b" stroke-width="2.5"/>
+    </g>
+    <!-- Resource node marker (top-right) -->
+    <g filter="url(#softGlow)">
+      <circle cx="412" cy="138" r="20" fill="#33ccf2" opacity="0.22"/>
+      <circle cx="412" cy="138" r="9.5" fill="#33ccf2" stroke="#0c111b" stroke-width="2.5"/>
+    </g>
+    <!-- Stored marker (bottom-left) -->
+    <g filter="url(#softGlow)">
+      <circle cx="114" cy="364" r="18" fill="#ffa62b" opacity="0.22"/>
+      <circle cx="114" cy="364" r="8.5" fill="#ffa62b" stroke="#0c111b" stroke-width="2.5"/>
+    </g>
+
+    <!-- Dotted scan lines connecting pin to markers -->
+    <g stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 6" opacity="0.32">
+      <line x1="112" y1="134" x2="180" y2="180"/>
+      <line x1="404" y1="143" x2="332" y2="182"/>
+      <line x1="122" y1="360" x2="222" y2="328"/>
+    </g>
+  </g>
+
+  <!-- Subtle inner industrial frame -->
+  <rect x="10" y="10" width="492" height="492" rx="18" ry="18" fill="none" stroke="#33435c" stroke-width="4"/>
+
+  <!-- FICSIT orange corner brackets -->
+  <g fill="none" stroke="#fa9549" stroke-width="5" stroke-linecap="round">
+    <path d="M 34 72 L 34 44 Q 34 34 44 34 L 72 34"/>
+    <path d="M 440 34 L 468 34 Q 478 34 478 44 L 478 72"/>
+    <path d="M 34 440 L 34 468 Q 34 478 44 478 L 72 478"/>
+    <path d="M 440 478 L 468 478 Q 478 478 478 468 L 478 440"/>
+  </g>
+
+  <!-- Hero Map Pin + Magnifier Emblem -->
+  <g filter="url(#dropShadow)">
+    <!-- Magnifying glass handle angled bottom-right -->
+    <path d="M 332 288 L 396 352" stroke="#1e293b" stroke-width="34" stroke-linecap="round"/>
+    <path d="M 332 288 L 396 352" stroke="url(#orangeGrad)" stroke-width="22" stroke-linecap="round"/>
+    <path d="M 358 314 L 388 344" stroke="#0f172a" stroke-width="10" stroke-linecap="round" opacity="0.5"/>
+
+    <!-- Main Map Pin Teardrop -->
+    <path d="M 256 76
+             C 178 76, 116 138, 116 216
+             C 116 306, 232 384, 250 398
+             C 254 401, 258 401, 262 398
+             C 280 384, 396 306, 396 216
+             C 396 138, 334 76, 256 76 Z"
+          fill="url(#orangeGrad)" stroke="#0f172a" stroke-width="6"/>
+
+    <!-- Inner dark lens bezel -->
+    <circle cx="256" cy="214" r="98" fill="url(#lensGrad)" stroke="#0f172a" stroke-width="5"/>
+    <circle cx="256" cy="214" r="91" fill="none" stroke="#3b4d68" stroke-width="2"/>
+
+    <!-- Subtle lens glare arc -->
+    <path d="M 186 172 A 80 80 0 0 1 298 144" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.16"/>
+
+    <!-- Stylized Factory Gear inside the lens (8 teeth) -->
+    <g transform="translate(256, 214)">
+      <path d="
+        M -14 -64 L 14 -64 L 18 -46 L 31 -41 L 47 -51 L 66 -32 L 56 -16 L 61 -3 L 78 1
+        L 78 29 L 61 33 L 56 46 L 66 62 L 47 81 L 31 71 L 18 76 L 14 94
+        L -14 94 L -18 76 L -31 71 L -47 81 L -66 62 L -56 46 L -61 33 L -78 29
+        L -78 1 L -61 -3 L -56 -16 L -66 -32 L -47 -51 L -31 -41 L -18 -46 Z"
+        transform="translate(0, -15) scale(0.76)"
+        fill="url(#metalGrad)" stroke="#0f172a" stroke-width="4" stroke-linejoin="round"/>
+      <!-- Gear inner ring -->
+      <circle cx="0" cy="0" r="24" fill="#131c2b" stroke="#0f172a" stroke-width="4"/>
+      <circle cx="0" cy="0" r="11" fill="url(#orangeGrad)"/>
+    </g>
+  </g>
+</svg>
