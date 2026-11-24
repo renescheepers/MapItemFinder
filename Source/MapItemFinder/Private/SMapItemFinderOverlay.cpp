@@ -281,7 +281,7 @@ void SMapItemFinderOverlay::RebuildProducedItemEntries(
 		if (IconTex)
 		{
 			Entry->IconBrush.SetResourceObject(IconTex);
-			Entry->IconBrush.ImageSize = FVector2D(20.0, 20.0);
+			Entry->IconBrush.SetImageSize(FVector2D(20.0, 20.0));
 			Entry->IconBrush.DrawAs = ESlateBrushDrawType::Image;
 		}
 		else
@@ -494,11 +494,12 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 	if (Entry.IsValid() && Entry->bIsHeader)
 	{
 		return SNew(STableRow<TSharedPtr<FMapFinderItemEntry>>, OwnerTable)
-			.IsEnabled(false)
+			.ShowSelection(false)
 			.Padding(FMargin(4.0f, 6.0f, 4.0f, 2.0f))
 			[
 				SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(FLinearColor(0.10f, 0.12f, 0.16f, 0.95f))
 				.Padding(FMargin(6.0f, 2.0f))
 				[
 					SNew(STextBlock)
