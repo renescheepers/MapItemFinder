@@ -20,17 +20,17 @@
 
 namespace
 {
-	// Native Satisfactory Map UI palette
-	const FLinearColor ColorPanelBorder(0.24f, 0.24f, 0.24f, 0.96f);
-	const FLinearColor ColorPanelBg(0.11f, 0.11f, 0.11f, 0.95f);
-	const FLinearColor ColorHeaderBar(0.32f, 0.32f, 0.32f, 1.0f);
-	const FLinearColor ColorSearchBar(0.34f, 0.34f, 0.34f, 1.0f);
-	const FLinearColor ColorFooterBg(0.14f, 0.14f, 0.14f, 0.98f);
-	const FLinearColor ColorButtonNeutral(0.45f, 0.45f, 0.45f, 1.0f);
-	const FLinearColor ColorChipUnselected(0.20f, 0.20f, 0.20f, 1.0f);
-	const FLinearColor ColorAccentOrange(0.89f, 0.48f, 0.12f, 1.0f);
-	const FLinearColor ColorTextPrimary(0.92f, 0.92f, 0.92f, 1.0f);
-	const FLinearColor ColorTextMuted(0.75f, 0.75f, 0.75f, 1.0f);
+	// Exact sRGB-matched native Satisfactory Map UI palette
+	const FLinearColor ColorPanelBorder = FLinearColor::FromSRGBColor(FColor(83, 83, 83, 255));
+	const FLinearColor ColorPanelBg = FLinearColor::FromSRGBColor(FColor(40, 40, 40, 245));
+	const FLinearColor ColorHeaderBar = FLinearColor::FromSRGBColor(FColor(102, 102, 104, 255));
+	const FLinearColor ColorSearchBar = FLinearColor::FromSRGBColor(FColor(102, 102, 104, 255));
+	const FLinearColor ColorFooterBg = FLinearColor::FromSRGBColor(FColor(40, 40, 40, 250));
+	const FLinearColor ColorButtonNeutral = FLinearColor::FromSRGBColor(FColor(102, 102, 104, 255));
+	const FLinearColor ColorChipUnselected = FLinearColor::FromSRGBColor(FColor(58, 58, 60, 255));
+	const FLinearColor ColorAccentOrange = FLinearColor::FromSRGBColor(FColor(229, 147, 68, 255));
+	const FLinearColor ColorTextPrimary = FLinearColor::FromSRGBColor(FColor(235, 235, 235, 255));
+	const FLinearColor ColorTextMuted = FLinearColor::FromSRGBColor(FColor(185, 185, 185, 255));
 
 	const FButtonStyle& GetFlatButtonStyle()
 	{
@@ -60,9 +60,9 @@ namespace
 			S.BackgroundImageNormal = *White;
 			S.BackgroundImageNormal.TintColor = ColorSearchBar;
 			S.BackgroundImageHovered = *White;
-			S.BackgroundImageHovered.TintColor = FLinearColor(0.38f, 0.38f, 0.38f, 1.0f);
+			S.BackgroundImageHovered.TintColor = FLinearColor::FromSRGBColor(FColor(115, 115, 118, 255));
 			S.BackgroundImageFocused = *White;
-			S.BackgroundImageFocused.TintColor = FLinearColor(0.28f, 0.28f, 0.28f, 1.0f);
+			S.BackgroundImageFocused.TintColor = FLinearColor::FromSRGBColor(FColor(88, 88, 90, 255));
 			S.BackgroundImageReadOnly = *White;
 			S.BackgroundImageReadOnly.TintColor = ColorSearchBar;
 			S.ForegroundColor = ColorTextPrimary;
@@ -117,7 +117,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Fill)
-		.Padding(FMargin(0.0f, 148.0f, 22.0f, 160.0f))
+		.Padding(FMargin(0.0f, 148.0f, 22.0f, 210.0f))
 		[
 			SNew(SVerticalBox)
 
@@ -512,7 +512,7 @@ void SMapItemFinderOverlay::RebuildResourceNodeFilterBar(const TArray<FMapFinder
 		SNew(SButton)
 		.ButtonStyle(&GetFlatButtonStyle())
 		.ContentPadding(FMargin(6.0f, 3.0f))
-		.ButtonColorAndOpacity(FSlateColor(FLinearColor(0.28f, 0.22f, 0.22f, 1.0f)))
+		.ButtonColorAndOpacity(FSlateColor(FLinearColor::FromSRGBColor(FColor(86, 62, 62, 255))))
 		.OnClicked(this, &SMapItemFinderOverlay::OnClearNodeResourceFilterClicked)
 		[
 			SNew(STextBlock)
