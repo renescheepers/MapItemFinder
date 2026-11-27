@@ -38,7 +38,7 @@ public:
 private:
 	void RebuildProducedItemEntries(const TArray<FMapFinderProducedItem>& ProducedItems);
 	void RebuildResourceNodeFilterBar(const TArray<FMapFinderResourceNode>& Nodes);
-	void UpdateFilteredItems(const FString& Query, bool bOpenIfNonEmpty);
+	void UpdateFilteredItems(const FString& Query);
 	void ToggleItem(const TSharedPtr<FMapFinderItemEntry>& Entry);
 	void RefreshStatusText(bool bFromServer);
 
@@ -50,9 +50,7 @@ private:
 		bool bFromServer);
 	void HandleResultsUpdated(bool bFromServer);
 
-	FReply OnNormalModeClicked();
-	FReply OnFinderModeClicked();
-	FReply OnToggleDropdownClicked();
+	FReply OnToggleFinderModeClicked();
 	FReply OnClearClicked();
 	FReply OnSelectNodeResourceFilter(TSubclassOf<UFGItemDescriptor> ResourceClass);
 	FReply OnClearNodeResourceFilterClicked();
@@ -71,10 +69,9 @@ private:
 	void OnMercerSpheresCheckChanged(ECheckBoxState NewState);
 
 	EVisibility GetFinderPanelVisibility() const;
-	EVisibility GetDropdownVisibility() const;
 	EVisibility GetResourceNodeFilterVisibility() const;
-	FSlateColor GetNormalButtonColor() const;
-	FSlateColor GetFinderButtonColor() const;
+	FText GetToggleFinderButtonText() const;
+	FSlateColor GetToggleFinderButtonColor() const;
 	FSlateColor GetNodeFilterButtonColor(TSubclassOf<UFGItemDescriptor> ResourceClass) const;
 
 	TWeakObjectPtr<UWorld> WorldPtr;
@@ -90,8 +87,6 @@ private:
 	TSharedPtr<SListView<TSharedPtr<FMapFinderItemEntry>>> ResultsListView;
 	TSharedPtr<STextBlock> StatusText;
 	TSharedPtr<SWrapBox> ResourceNodeFilterBox;
-
-	bool bDropdownOpen = false;
 };
 
 #endif

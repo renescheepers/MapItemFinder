@@ -5,6 +5,7 @@
 #include "FGCategory.h"
 #include "MapItemFinderSubsystem.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -16,6 +17,75 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
+
+namespace
+{
+	// Native Satisfactory Map UI palette
+	const FLinearColor ColorPanelBorder(0.24f, 0.24f, 0.24f, 0.96f);
+	const FLinearColor ColorPanelBg(0.11f, 0.11f, 0.11f, 0.95f);
+	const FLinearColor ColorHeaderBar(0.32f, 0.32f, 0.32f, 1.0f);
+	const FLinearColor ColorSearchBar(0.34f, 0.34f, 0.34f, 1.0f);
+	const FLinearColor ColorFooterBg(0.14f, 0.14f, 0.14f, 0.98f);
+	const FLinearColor ColorButtonNeutral(0.38f, 0.38f, 0.38f, 1.0f);
+	const FLinearColor ColorChipUnselected(0.20f, 0.20f, 0.20f, 1.0f);
+	const FLinearColor ColorAccentOrange(0.89f, 0.48f, 0.12f, 1.0f);
+	const FLinearColor ColorTextPrimary(0.92f, 0.92f, 0.92f, 1.0f);
+	const FLinearColor ColorTextMuted(0.75f, 0.75f, 0.75f, 1.0f);
+
+	const FButtonStyle& GetFlatButtonStyle()
+	{
+		static FButtonStyle Style = []()
+		{
+			FButtonStyle S = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
+			const FSlateBrush* White = FCoreStyle::Get().GetBrush("WhiteBrush");
+			S.Normal = *White;
+			S.Normal.TintColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			S.Hovered = *White;
+			S.Hovered.TintColor = FLinearColor(1.15f, 1.15f, 1.15f, 1.0f);
+			S.Pressed = *White;
+			S.Pressed.TintColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+			S.NormalPadding = FMargin(0.0f);
+			S.PressedPadding = FMargin(0.0f);
+			return S;
+		}();
+		return Style;
+	}
+
+	const FEditableTextBoxStyle& GetFlatSearchBoxStyle()
+	{
+		static FEditableTextBoxStyle Style = []()
+		{
+			FEditableTextBoxStyle S = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+			const FSlateBrush* White = FCoreStyle::Get().GetBrush("WhiteBrush");
+			S.BackgroundImageNormal = *White;
+			S.BackgroundImageNormal.TintColor = ColorSearchBar;
+			S.BackgroundImageHovered = *White;
+			S.BackgroundImageHovered.TintColor = FLinearColor(0.38f, 0.38f, 0.38f, 1.0f);
+			S.BackgroundImageFocused = *White;
+			S.BackgroundImageFocused.TintColor = FLinearColor(0.28f, 0.28f, 0.28f, 1.0f);
+			S.BackgroundImageReadOnly = *White;
+			S.BackgroundImageReadOnly.TintColor = ColorSearchBar;
+			S.ForegroundColor = ColorTextPrimary;
+			S.FocusedForegroundColor = FLinearColor::White;
+			S.Padding = FMargin(8.0f, 6.0f);
+			return S;
+		}();
+		return Style;
+	}
+
+	TSharedRef<SWidget> MakeSectionHeader(const FString& Title)
+	{
+		return SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(ColorHeaderBar)
+			.Padding(FMargin(8.0f, 4.0f))
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Title))
+				.ColorAndOpacity(ColorTextPrimary)
+			];
+	}
+}
 
 void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 {
@@ -38,206 +108,232 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 	const bool bInitialStored = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowStored() : true;
 	const bool bInitialNodes = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowResourceNodes() : false;
 	const bool bInitialMercer = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowMercerSpheres() : false;
+	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
 
 	ChildSlot
 	[
 		SNew(SOverlay)
 		.Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Top)
-		.Padding(FMargin(0.0f, 16.0f, 0.0f, 0.0f))
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Fill)
+		.Padding(FMargin(0.0f, 112.0f, 16.0f, 128.0f))
 		[
 			SNew(SVerticalBox)
 
+			// Right-aligned toggle button mirroring native "Hide Menu" on the left
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.HAlign(HAlign_Center)
+			.HAlign(HAlign_Right)
+			.Padding(FMargin(0.0f, 0.0f, 0.0f, 6.0f))
 			[
-				SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-				.BorderBackgroundColor(FLinearColor(0.04f, 0.05f, 0.07f, 0.92f))
-				.Padding(FMargin(6.0f, 4.0f))
+				SNew(SBox)
+				.MinDesiredWidth(116.0f)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+					SNew(SButton)
+					.ButtonStyle(&GetFlatButtonStyle())
+					.ButtonColorAndOpacity(this, &SMapItemFinderOverlay::GetToggleFinderButtonColor)
+					.OnClicked(this, &SMapItemFinderOverlay::OnToggleFinderModeClicked)
+					.ContentPadding(FMargin(14.0f, 7.0f))
+					.HAlign(HAlign_Center)
 					[
-						SNew(SButton)
-						.ButtonColorAndOpacity(this, &SMapItemFinderOverlay::GetNormalButtonColor)
-						.OnClicked(this, &SMapItemFinderOverlay::OnNormalModeClicked)
-						.ContentPadding(FMargin(14.0f, 4.0f))
-						[
-							SNew(STextBlock)
-							.Text(FText::FromString(TEXT("Normal")))
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.ButtonColorAndOpacity(this, &SMapItemFinderOverlay::GetFinderButtonColor)
-						.OnClicked(this, &SMapItemFinderOverlay::OnFinderModeClicked)
-						.ContentPadding(FMargin(14.0f, 4.0f))
-						[
-							SNew(STextBlock)
-							.Text(FText::FromString(TEXT("Finder")))
-						]
+						SNew(STextBlock)
+						.Text(this, &SMapItemFinderOverlay::GetToggleFinderButtonText)
+						.ColorAndOpacity(ColorTextPrimary)
 					]
 				]
 			]
 
+			// Right-side Finder panel styled like the native Map left menu
 			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Center)
-			.Padding(FMargin(0.0f, 6.0f, 0.0f, 0.0f))
+			.FillHeight(1.0f)
+			.HAlign(HAlign_Right)
 			[
 				SNew(SBox)
-				.WidthOverride(540.0f)
+				.WidthOverride(320.0f)
 				.Visibility(this, &SMapItemFinderOverlay::GetFinderPanelVisibility)
 				[
 					SNew(SBorder)
-					.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-					.BorderBackgroundColor(FLinearColor(0.04f, 0.05f, 0.07f, 0.92f))
-					.Padding(FMargin(10.0f, 8.0f))
+					.BorderImage(WhiteBrush)
+					.BorderBackgroundColor(ColorPanelBorder)
+					.Padding(FMargin(1.0f))
 					[
-						SNew(SVerticalBox)
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
+						SNew(SBorder)
+						.BorderImage(WhiteBrush)
+						.BorderBackgroundColor(ColorPanelBg)
+						.Padding(FMargin(0.0f))
 						[
-							SNew(SHorizontalBox)
+							SNew(SVerticalBox)
 
-							+ SHorizontalBox::Slot()
-							.FillWidth(1.0f)
-							.VAlign(VAlign_Center)
+							// Search bar (matching native "Search...")
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
 							[
 								SAssignNew(SearchBox, SEditableTextBox)
-								.HintText(FText::FromString(TEXT("Search & toggle produced items...")))
+								.Style(&GetFlatSearchBoxStyle())
+								.HintText(FText::FromString(TEXT("Search...")))
 								.OnTextChanged(this, &SMapItemFinderOverlay::OnSearchTextChanged)
 								.OnTextCommitted(this, &SMapItemFinderOverlay::OnSearchTextCommitted)
 							]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-							.VAlign(VAlign_Center)
+							// Display Filters section
+							+ SVerticalBox::Slot()
+							.AutoHeight()
 							[
-								SNew(SButton)
-								.Text(FText::FromString(TEXT("v")))
-								.ToolTipText(FText::FromString(TEXT("Show all produced items")))
-								.OnClicked(this, &SMapItemFinderOverlay::OnToggleDropdownClicked)
+								MakeSectionHeader(TEXT("Map Item Finder"))
 							]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-							.VAlign(VAlign_Center)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(FMargin(8.0f, 6.0f))
 							[
-								SNew(SButton)
-								.Text(FText::FromString(TEXT("Clear")))
-								.OnClicked(this, &SMapItemFinderOverlay::OnClearClicked)
-							]
-						]
+								SNew(SVerticalBox)
 
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(FMargin(0.0f, 6.0f, 0.0f, 0.0f))
-						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(FMargin(0.0f, 0.0f, 14.0f, 0.0f))
-							[
-								SNew(SCheckBox)
-								.IsChecked(bInitialProduced ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-								.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnProducedCheckChanged)
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								.Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
 								[
-									SNew(STextBlock)
-									.Text(FText::FromString(TEXT("Produced")))
-									.ColorAndOpacity(FLinearColor(0.35f, 0.95f, 0.50f, 1.0f))
+									SNew(SHorizontalBox)
+
+									+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+									[
+										SNew(SCheckBox)
+										.IsChecked(bInitialProduced ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+										.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnProducedCheckChanged)
+										[
+											SNew(STextBlock)
+											.Text(FText::FromString(TEXT("Produced")))
+											.ColorAndOpacity(ColorTextPrimary)
+										]
+									]
+
+									+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+									[
+										SNew(SCheckBox)
+										.IsChecked(bInitialStored ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+										.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnStoredCheckChanged)
+										[
+											SNew(STextBlock)
+											.Text(FText::FromString(TEXT("Stored / Depot")))
+											.ColorAndOpacity(ColorTextPrimary)
+										]
+									]
+								]
+
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								[
+									SNew(SHorizontalBox)
+
+									+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+									[
+										SNew(SCheckBox)
+										.IsChecked(bInitialNodes ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+										.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnResourceNodesCheckChanged)
+										[
+											SNew(STextBlock)
+											.Text(FText::FromString(TEXT("Resource Nodes")))
+											.ColorAndOpacity(ColorTextPrimary)
+										]
+									]
+
+									+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+									[
+										SNew(SCheckBox)
+										.IsChecked(bInitialMercer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+										.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnMercerSpheresCheckChanged)
+										[
+											SNew(STextBlock)
+											.Text(FText::FromString(TEXT("Mercer Spheres")))
+											.ColorAndOpacity(ColorTextPrimary)
+										]
+									]
 								]
 							]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(FMargin(0.0f, 0.0f, 14.0f, 0.0f))
+							// Resource Nodes filter chips (shown when Resource Nodes is checked)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
 							[
-								SNew(SCheckBox)
-								.IsChecked(bInitialStored ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-								.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnStoredCheckChanged)
+								SNew(SVerticalBox)
+								.Visibility(this, &SMapItemFinderOverlay::GetResourceNodeFilterVisibility)
+
+								+ SVerticalBox::Slot()
+								.AutoHeight()
 								[
-									SNew(STextBlock)
-									.Text(FText::FromString(TEXT("Stored / Depot")))
-									.ColorAndOpacity(FLinearColor(1.00f, 0.72f, 0.25f, 1.0f))
+									MakeSectionHeader(TEXT("Resource Nodes"))
+								]
+
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								.Padding(FMargin(8.0f, 6.0f))
+								[
+									SAssignNew(ResourceNodeFilterBox, SWrapBox)
+									.UseAllottedSize(true)
+									.InnerSlotPadding(FVector2D(4.0f, 4.0f))
 								]
 							]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(FMargin(0.0f, 0.0f, 14.0f, 0.0f))
-							[
-								SNew(SCheckBox)
-								.IsChecked(bInitialNodes ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-								.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnResourceNodesCheckChanged)
-								[
-									SNew(STextBlock)
-									.Text(FText::FromString(TEXT("Resource Nodes")))
-									.ColorAndOpacity(FLinearColor(0.45f, 0.85f, 1.00f, 1.0f))
-								]
-							]
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SNew(SCheckBox)
-								.IsChecked(bInitialMercer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-								.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnMercerSpheresCheckChanged)
-								[
-									SNew(STextBlock)
-									.Text(FText::FromString(TEXT("Mercer Spheres")))
-									.ColorAndOpacity(FLinearColor(0.88f, 0.45f, 1.00f, 1.0f))
-								]
-							]
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(FMargin(0.0f, 6.0f, 0.0f, 0.0f))
-						[
-							SAssignNew(ResourceNodeFilterBox, SWrapBox)
-							.UseAllottedSize(true)
-							.InnerSlotPadding(FVector2D(4.0f, 4.0f))
-							.Visibility(this, &SMapItemFinderOverlay::GetResourceNodeFilterVisibility)
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
-						[
-							SAssignNew(StatusText, STextBlock)
-							.ColorAndOpacity(FLinearColor(0.80f, 0.84f, 0.90f, 1.0f))
-							.AutoWrapText(true)
-							.Text(FText::GetEmpty())
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.MaxHeight(280.0f)
-						.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
-						[
-							SNew(SBox)
-							.Visibility(this, &SMapItemFinderOverlay::GetDropdownVisibility)
+							// Scrollable Produced Items list (always visible inside sidebar, like native menu)
+							+ SVerticalBox::Slot()
+							.FillHeight(1.0f)
 							[
 								SAssignNew(ResultsListView, SListView<TSharedPtr<FMapFinderItemEntry>>)
 								.ListItemsSource(&FilteredItems)
 								.OnGenerateRow(this, &SMapItemFinderOverlay::OnGenerateItemRow)
 								.OnMouseButtonClick(this, &SMapItemFinderOverlay::OnItemRowClicked)
 								.SelectionMode(ESelectionMode::None)
+							]
+
+							// Bottom footer bar (matching native "Show Stamps on Map" footer)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(SBorder)
+								.BorderImage(WhiteBrush)
+								.BorderBackgroundColor(ColorPanelBorder)
+								.Padding(FMargin(0.0f, 1.0f, 0.0f, 0.0f))
+								[
+									SNew(SBorder)
+									.BorderImage(WhiteBrush)
+									.BorderBackgroundColor(ColorFooterBg)
+									.Padding(FMargin(8.0f, 6.0f))
+									[
+										SNew(SHorizontalBox)
+
+										+ SHorizontalBox::Slot()
+										.FillWidth(1.0f)
+										.VAlign(VAlign_Center)
+										.Padding(FMargin(0.0f, 0.0f, 6.0f, 0.0f))
+										[
+											SAssignNew(StatusText, STextBlock)
+											.ColorAndOpacity(ColorTextMuted)
+											.AutoWrapText(true)
+											.Text(FText::GetEmpty())
+										]
+
+										+ SHorizontalBox::Slot()
+										.AutoWidth()
+										.VAlign(VAlign_Center)
+										[
+											SNew(SButton)
+											.ButtonStyle(&GetFlatButtonStyle())
+											.ButtonColorAndOpacity(ColorButtonNeutral)
+											.ContentPadding(FMargin(10.0f, 4.0f))
+											.OnClicked(this, &SMapItemFinderOverlay::OnClearClicked)
+											[
+												SNew(STextBlock)
+												.Text(FText::FromString(TEXT("Clear")))
+												.ColorAndOpacity(ColorTextPrimary)
+											]
+										]
+									]
+								]
 							]
 						]
 					]
@@ -252,7 +348,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 		{
 			RebuildResourceNodeFilterBar(Subsystem->GetCachedResourceNodes());
 		}
-		if (Subsystem->IsFinderModeActive() && Subsystem->GetSelectedItemClasses().Num() > 0)
+		if (Subsystem->IsFinderModeActive())
 		{
 			RefreshStatusText(true);
 		}
@@ -332,7 +428,7 @@ void SMapItemFinderOverlay::RebuildProducedItemEntries(
 		if (IconTex)
 		{
 			Entry->IconBrush.SetResourceObject(IconTex);
-			Entry->IconBrush.SetImageSize(FVector2D(20.0, 20.0));
+			Entry->IconBrush.SetImageSize(FVector2D(18.0, 18.0));
 			Entry->IconBrush.DrawAs = ESlateBrushDrawType::Image;
 		}
 		else
@@ -357,7 +453,7 @@ void SMapItemFinderOverlay::RebuildProducedItemEntries(
 	});
 
 	const FString CurrentQuery = SearchBox.IsValid() ? SearchBox->GetText().ToString() : FString();
-	UpdateFilteredItems(CurrentQuery, bDropdownOpen);
+	UpdateFilteredItems(CurrentQuery);
 }
 
 void SMapItemFinderOverlay::RebuildResourceNodeFilterBar(const TArray<FMapFinderResourceNode>& Nodes)
@@ -397,12 +493,14 @@ void SMapItemFinderOverlay::RebuildResourceNodeFilterBar(const TArray<FMapFinder
 		ResourceNodeFilterBox->AddSlot()
 		[
 			SNew(SButton)
-			.ContentPadding(FMargin(6.0f, 2.0f))
+			.ButtonStyle(&GetFlatButtonStyle())
+			.ContentPadding(FMargin(6.0f, 3.0f))
 			.ButtonColorAndOpacity(this, &SMapItemFinderOverlay::GetNodeFilterButtonColor, ResourceClass)
 			.OnClicked(this, &SMapItemFinderOverlay::OnSelectNodeResourceFilter, ResourceClass)
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(Label))
+				.ColorAndOpacity(ColorTextPrimary)
 			]
 		];
 	};
@@ -410,12 +508,14 @@ void SMapItemFinderOverlay::RebuildResourceNodeFilterBar(const TArray<FMapFinder
 	ResourceNodeFilterBox->AddSlot()
 	[
 		SNew(SButton)
-		.ContentPadding(FMargin(6.0f, 2.0f))
-		.ButtonColorAndOpacity(FSlateColor(FLinearColor(0.28f, 0.20f, 0.20f, 1.0f)))
+		.ButtonStyle(&GetFlatButtonStyle())
+		.ContentPadding(FMargin(6.0f, 3.0f))
+		.ButtonColorAndOpacity(FSlateColor(FLinearColor(0.28f, 0.22f, 0.22f, 1.0f)))
 		.OnClicked(this, &SMapItemFinderOverlay::OnClearNodeResourceFilterClicked)
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(TEXT("None")))
+			.ColorAndOpacity(ColorTextPrimary)
 		]
 	];
 
@@ -426,13 +526,12 @@ void SMapItemFinderOverlay::RebuildResourceNodeFilterBar(const TArray<FMapFinder
 	}
 }
 
-void SMapItemFinderOverlay::UpdateFilteredItems(const FString& Query, bool bOpenIfNonEmpty)
+void SMapItemFinderOverlay::UpdateFilteredItems(const FString& Query)
 {
 	FilteredItems.Empty();
 	const FString Trimmed = Query.TrimStartAndEnd();
 
 	FString LastCategory;
-	bool bHasAnyItem = false;
 
 	for (const TSharedPtr<FMapFinderItemEntry>& Entry : ProducedItemEntries)
 	{
@@ -456,10 +555,8 @@ void SMapItemFinderOverlay::UpdateFilteredItems(const FString& Query, bool bOpen
 		}
 
 		FilteredItems.Add(Entry);
-		bHasAnyItem = true;
 	}
 
-	bDropdownOpen = bOpenIfNonEmpty && bHasAnyItem;
 	if (ResultsListView.IsValid())
 	{
 		ResultsListView->RequestListRefresh();
@@ -493,12 +590,12 @@ void SMapItemFinderOverlay::RefreshStatusText(bool bFromServer)
 	}
 
 	const TSet<TSubclassOf<UFGItemDescriptor>>& Selected = Subsystem->GetSelectedItemClasses();
-	const FString ModeSuffix = bFromServer ? TEXT("") : TEXT(" (local client only)");
+	const FString ModeSuffix = bFromServer ? TEXT("") : TEXT(" (local)");
 
 	if (Selected.Num() == 0)
 	{
 		StatusText->SetText(FText::FromString(
-			FString::Printf(TEXT("%d produced item(s) available%s"), ProducedItemEntries.Num(), *ModeSuffix)));
+			FString::Printf(TEXT("%d produced item(s)%s"), ProducedItemEntries.Num(), *ModeSuffix)));
 		return;
 	}
 
@@ -540,7 +637,7 @@ void SMapItemFinderOverlay::RefreshStatusText(bool bFromServer)
 	}
 
 	StatusText->SetText(FText::FromString(FString::Printf(
-		TEXT("%s: %d prod site(s) (%d machines), %d storage site(s) (%d items)%s"),
+		TEXT("%s: %d prod (%d), %d storage (%d)%s"),
 		*Prefix, ProdSites, ProdMachines, StorageSites, StoredItems, *ModeSuffix)));
 }
 
@@ -568,39 +665,17 @@ void SMapItemFinderOverlay::HandleResultsUpdated(bool bFromServer)
 	RefreshStatusText(bFromServer);
 }
 
-FReply SMapItemFinderOverlay::OnNormalModeClicked()
-{
-	bDropdownOpen = false;
-	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
-	{
-		Subsystem->SetFinderMode(WorldPtr.Get(), false);
-	}
-	return FReply::Handled();
-}
-
-FReply SMapItemFinderOverlay::OnFinderModeClicked()
+FReply SMapItemFinderOverlay::OnToggleFinderModeClicked()
 {
 	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
-		if (StatusText.IsValid() && Subsystem->GetSelectedItemClasses().Num() == 0)
+		const bool bEnable = !Subsystem->IsFinderModeActive();
+		if (bEnable && StatusText.IsValid() && Subsystem->GetSelectedItemClasses().Num() == 0)
 		{
 			StatusText->SetText(FText::FromString(TEXT("Loading produced items...")));
 		}
-		Subsystem->SetFinderMode(WorldPtr.Get(), true);
+		Subsystem->SetFinderMode(WorldPtr.Get(), bEnable);
 	}
-	return FReply::Handled();
-}
-
-FReply SMapItemFinderOverlay::OnToggleDropdownClicked()
-{
-	if (bDropdownOpen)
-	{
-		bDropdownOpen = false;
-		return FReply::Handled();
-	}
-
-	const FString CurrentQuery = SearchBox.IsValid() ? SearchBox->GetText().ToString() : FString();
-	UpdateFilteredItems(CurrentQuery, true);
 	return FReply::Handled();
 }
 
@@ -624,8 +699,7 @@ FReply SMapItemFinderOverlay::OnClearNodeResourceFilterClicked()
 
 void SMapItemFinderOverlay::OnSearchTextChanged(const FText& NewText)
 {
-	const FString Query = NewText.ToString();
-	UpdateFilteredItems(Query, !Query.TrimStartAndEnd().IsEmpty());
+	UpdateFilteredItems(NewText.ToString());
 }
 
 void SMapItemFinderOverlay::OnSearchTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
@@ -651,17 +725,9 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 	{
 		return SNew(STableRow<TSharedPtr<FMapFinderItemEntry>>, OwnerTable)
 			.ShowSelection(false)
-			.Padding(FMargin(4.0f, 6.0f, 4.0f, 2.0f))
+			.Padding(FMargin(0.0f, 4.0f, 0.0f, 2.0f))
 			[
-				SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(FLinearColor(0.10f, 0.12f, 0.16f, 0.95f))
-				.Padding(FMargin(6.0f, 2.0f))
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Entry->DisplayName))
-					.ColorAndOpacity(FLinearColor(0.95f, 0.65f, 0.20f, 1.0f))
-				]
+				MakeSectionHeader(Entry->DisplayName)
 			];
 	}
 
@@ -689,8 +755,8 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 			.Padding(FMargin(0.0f, 0.0f, 8.0f, 0.0f))
 			[
 				SNew(SBox)
-				.WidthOverride(20.0f)
-				.HeightOverride(20.0f)
+				.WidthOverride(18.0f)
+				.HeightOverride(18.0f)
 				[
 					SNew(SImage)
 					.Image(Entry.IsValid() ? &Entry->IconBrush : nullptr)
@@ -703,6 +769,7 @@ TSharedRef<ITableRow> SMapItemFinderOverlay::OnGenerateItemRow(
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(Entry.IsValid() ? Entry->DisplayName : TEXT("")))
+				.ColorAndOpacity(ColorTextPrimary)
 			]
 		];
 }
@@ -731,7 +798,6 @@ ECheckBoxState SMapItemFinderOverlay::IsItemChecked(TSubclassOf<UFGItemDescripto
 
 FReply SMapItemFinderOverlay::OnClearClicked()
 {
-	bDropdownOpen = false;
 	if (SearchBox.IsValid())
 	{
 		SearchBox->SetText(FText::GetEmpty());
@@ -783,11 +849,6 @@ EVisibility SMapItemFinderOverlay::GetFinderPanelVisibility() const
 		: EVisibility::Collapsed;
 }
 
-EVisibility SMapItemFinderOverlay::GetDropdownVisibility() const
-{
-	return bDropdownOpen ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
 EVisibility SMapItemFinderOverlay::GetResourceNodeFilterVisibility() const
 {
 	return (SubsystemPtr.IsValid() && SubsystemPtr->IsFinderModeActive() && SubsystemPtr->GetShowResourceNodes())
@@ -795,20 +856,18 @@ EVisibility SMapItemFinderOverlay::GetResourceNodeFilterVisibility() const
 		: EVisibility::Collapsed;
 }
 
-FSlateColor SMapItemFinderOverlay::GetNormalButtonColor() const
+FText SMapItemFinderOverlay::GetToggleFinderButtonText() const
 {
-	const bool bIsNormal = !SubsystemPtr.IsValid() || !SubsystemPtr->IsFinderModeActive();
-	return bIsNormal
-		? FSlateColor(FLinearColor(0.95f, 0.55f, 0.12f, 1.0f))
-		: FSlateColor(FLinearColor(0.22f, 0.25f, 0.30f, 1.0f));
+	const bool bIsFinder = SubsystemPtr.IsValid() && SubsystemPtr->IsFinderModeActive();
+	return FText::FromString(bIsFinder ? TEXT("Hide Finder") : TEXT("Show Finder"));
 }
 
-FSlateColor SMapItemFinderOverlay::GetFinderButtonColor() const
+FSlateColor SMapItemFinderOverlay::GetToggleFinderButtonColor() const
 {
 	const bool bIsFinder = SubsystemPtr.IsValid() && SubsystemPtr->IsFinderModeActive();
 	return bIsFinder
-		? FSlateColor(FLinearColor(0.95f, 0.55f, 0.12f, 1.0f))
-		: FSlateColor(FLinearColor(0.22f, 0.25f, 0.30f, 1.0f));
+		? FSlateColor(ColorButtonNeutral)
+		: FSlateColor(ColorAccentOrange);
 }
 
 FSlateColor SMapItemFinderOverlay::GetNodeFilterButtonColor(TSubclassOf<UFGItemDescriptor> ResourceClass) const
@@ -816,8 +875,8 @@ FSlateColor SMapItemFinderOverlay::GetNodeFilterButtonColor(TSubclassOf<UFGItemD
 	const bool bIsSelected = SubsystemPtr.IsValid()
 		&& SubsystemPtr->IsResourceNodeFilterSelected(ResourceClass);
 	return bIsSelected
-		? FSlateColor(FLinearColor(0.25f, 0.70f, 0.95f, 1.0f))
-		: FSlateColor(FLinearColor(0.18f, 0.21f, 0.26f, 1.0f));
+		? FSlateColor(ColorAccentOrange)
+		: FSlateColor(ColorChipUnselected);
 }
 
 #endif
