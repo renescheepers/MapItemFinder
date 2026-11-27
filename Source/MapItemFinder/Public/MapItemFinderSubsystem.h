@@ -141,7 +141,13 @@ private:
 	TArray<FMapFinderResourceNode> CachedResourceNodes;
 
 	UPROPERTY()
+	TArray<FMapFinderResourceNode> PendingResourceNodes;
+
+	UPROPERTY()
 	TArray<FMapFinderMercerSphere> CachedMercerSpheres;
+
+	UPROPERTY()
+	TArray<FMapFinderMercerSphere> PendingMercerSpheres;
 
 	TMap<TSubclassOf<UFGItemDescriptor>, TArray<FMapFinderCluster>> ResultsByItem;
 	TMap<TSubclassOf<UFGItemDescriptor>, int32> ItemRequestIds;

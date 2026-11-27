@@ -222,6 +222,52 @@ void UMapItemFinderSubsystem::RequestResourceNodes(UWorld* World)
 	HandleResourceNodesChunk(World, RequestId, LocalNodes, true, true, false);
 }
 
+namespace
+{
+	bool AreResourceNodeListsEqual(
+		const TArray<FMapFinderResourceNode>& A,
+		const TArray<FMapFinderResourceNode>& B)
+	{
+		if (A.Num() != B.Num())
+		{
+			return false;
+		}
+		for (int32 i = 0; i < A.Num(); ++i)
+		{
+			if (A[i].ResourceClass != B[i].ResourceClass
+				|| A[i].Purity != B[i].Purity
+				|| A[i].bOccupied != B[i].bOccupied
+				|| !A[i].Location.Equals(B[i].Location, 1.0f))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool AreMercerSphereListsEqual(
+		const TArray<FMapFinderMercerSphere>& A,
+		const TArray<FMapFinderMercerSphere>& B)
+	{
+		if (A.Num() != B.Num())
+		{
+			return false;
+		}
+		for (int32 i = 0; i < A.Num(); ++i)
+		{
+			if (A[i].ItemClass != B[i].ItemClass
+				|| A[i].Count != B[i].Count
+				|| A[i].bInStorage != B[i].bInStorage
+				|| A[i].bInDepot != B[i].bInDepot
+				|| !A[i].Location.Equals(B[i].Location, 1.0f))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
 void UMapItemFinderSubsystem::HandleResourceNodesChunk(
 	UWorld* World,
 	int32 RequestId,
@@ -237,15 +283,29 @@ void UMapItemFinderSubsystem::HandleResourceNodesChunk(
 
 	if (bReset)
 	{
-		CachedResourceNodes.Empty();
+		PendingResourceNodes.Empty();
 	}
-	CachedResourceNodes.Append(NodesChunk);
+	PendingResourceNodes.Append(NodesChunk);
 
 	if (bIsFinal)
 	{
+		const bool bChanged = !AreResourceNodeListsEqual(CachedResourceNodes, PendingResourceNodes);
+		if (bChanged)
+		{
+			CachedResourceNodes = MoveTemp(PendingResourceNodes);
+		}
+		else
+		{
+			PendingResourceNodes.Empty();
+		}
+
 		if (bFinderModeActive && bShowResourceNodes)
 		{
-			RebuildResourceNodePins(World);
+			const bool bWantsPins = bShowAllResourceNodes || SelectedNodeResourceFilters.Num() > 0;
+			if (bChanged || (bWantsPins && ResourceNodePins.Num() == 0))
+			{
+				RebuildResourceNodePins(World);
+			}
 		}
 		OnResourceNodesUpdated.Broadcast(CachedResourceNodes, bFromServer);
 	}
@@ -420,13 +480,29 @@ void UMapItemFinderSubsystem::HandleMercerSpheresChunk(
 
 	if (bReset)
 	{
-		CachedMercerSpheres.Empty();
+		PendingMercerSpheres.Empty();
 	}
-	CachedMercerSpheres.Append(SpheresChunk);
+	PendingMercerSpheres.Append(SpheresChunk);
 
-	if (bIsFinal && bFinderModeActive && bShowMercerSpheres)
+	if (bIsFinal)
 	{
-		RebuildMercerSpherePins(World);
+		const bool bChanged = !AreMercerSphereListsEqual(CachedMercerSpheres, PendingMercerSpheres);
+		if (bChanged)
+		{
+			CachedMercerSpheres = MoveTemp(PendingMercerSpheres);
+		}
+		else
+		{
+			PendingMercerSpheres.Empty();
+		}
+
+		if (bFinderModeActive && bShowMercerSpheres)
+		{
+			if (bChanged || (CachedMercerSpheres.Num() > 0 && MercerSpherePins.Num() == 0))
+			{
+				RebuildMercerSpherePins(World);
+			}
+		}
 	}
 }
 
