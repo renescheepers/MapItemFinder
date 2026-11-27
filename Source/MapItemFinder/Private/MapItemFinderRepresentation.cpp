@@ -189,6 +189,53 @@ void UMapItemFinderRepresentation::InitializeResourceNodePin(
 	SetRepresentationID(Marker.MarkerGUID);
 }
 
+void UMapItemFinderRepresentation::InitializeMercerSpherePin(
+	UWorld* World,
+	const FMapFinderMercerSphere& InSphere)
+{
+	ItemClass = InSphere.ItemClass;
+	CachedIconTexture = GetItemIconTexture(ItemClass);
+	PinScale = 1.0f;
+	PinColor = FLinearColor(0.85f, 0.35f, 0.98f, 1.0f);
+
+	const FString ItemName = ItemClass
+		? UFGItemDescriptor::GetItemName(ItemClass).ToString()
+		: TEXT("Mercer Sphere");
+	const FString FullLabel = FString::Printf(TEXT("%s (Uncollected)"), *ItemName);
+	PinText = FText::FromString(FullLabel);
+
+	const int32 ResolvedIconId = ResolveIconID(World, ItemClass, CachedIconTexture);
+
+	FMapMarker Marker;
+	Marker.MarkerGUID = FGuid::NewGuid();
+	Marker.Location = InSphere.Location;
+	Marker.Name = FullLabel;
+	Marker.CategoryName = TEXT("Mercer Spheres");
+	Marker.MapMarkerType = ERepresentationType::RT_MapMarker;
+	Marker.IconID = (ResolvedIconId != INDEX_NONE) ? ResolvedIconId : 0;
+	Marker.Color = PinColor;
+	Marker.Scale = PinScale;
+	Marker.CompassViewDistance = ECompassViewDistance::CVD_Off;
+
+	Init(Marker);
+
+	mIsLocal = true;
+	mIsStatic = true;
+	mLocalActorLocation = InSphere.Location;
+	mActorLocation = InSphere.Location;
+	if (CachedIconTexture)
+	{
+		mRepresentationTexture = CachedIconTexture;
+	}
+	mRepresentationText = PinText;
+	mRepresentationColor = PinColor;
+	mShouldShowOnMap = true;
+	mShouldShowInCompass = false;
+	mFogOfWarRevealType = EFogOfWarRevealType::FOWRT_None;
+	SetIsOnClient(true);
+	SetRepresentationID(Marker.MarkerGUID);
+}
+
 FVector UMapItemFinderRepresentation::GetActorLocation() const
 {
 	return mLocalActorLocation;

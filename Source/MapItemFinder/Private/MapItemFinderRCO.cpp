@@ -92,6 +92,55 @@ void UMapItemFinderRCO::Client_ReceiveResourceNodesChunk_Implementation(
 	}
 }
 
+void UMapItemFinderRCO::Server_RequestMercerSpheres_Implementation(int32 RequestId)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TArray<FMapFinderMercerSphere> AllSpheres = FMapItemFinderScanner::ScanMercerSpheres(World);
+	constexpr int32 ChunkSize = 120;
+
+	if (AllSpheres.Num() == 0)
+	{
+		Client_ReceiveMercerSpheresChunk(RequestId, AllSpheres, true, true);
+		return;
+	}
+
+	for (int32 Start = 0; Start < AllSpheres.Num(); Start += ChunkSize)
+	{
+		const int32 Count = FMath::Min(ChunkSize, AllSpheres.Num() - Start);
+		TArray<FMapFinderMercerSphere> Chunk;
+		Chunk.Append(AllSpheres.GetData() + Start, Count);
+		const bool bReset = (Start == 0);
+		const bool bIsFinal = (Start + Count >= AllSpheres.Num());
+		Client_ReceiveMercerSpheresChunk(RequestId, Chunk, bReset, bIsFinal);
+	}
+}
+
+void UMapItemFinderRCO::Client_ReceiveMercerSpheresChunk_Implementation(
+	int32 RequestId,
+	const TArray<FMapFinderMercerSphere>& SpheresChunk,
+	bool bReset,
+	bool bIsFinal)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		if (UMapItemFinderSubsystem* Subsystem = GameInstance->GetSubsystem<UMapItemFinderSubsystem>())
+		{
+			Subsystem->HandleMercerSpheresChunk(World, RequestId, SpheresChunk, bReset, bIsFinal, true);
+		}
+	}
+}
+
 bool UMapItemFinderRCO::Server_SearchItem_Validate(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId)
 {
 	return ItemClass != nullptr;

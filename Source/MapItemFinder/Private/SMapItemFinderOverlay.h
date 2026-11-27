@@ -68,6 +68,7 @@ private:
 	void OnProducedCheckChanged(ECheckBoxState NewState);
 	void OnStoredCheckChanged(ECheckBoxState NewState);
 	void OnResourceNodesCheckChanged(ECheckBoxState NewState);
+	void OnMercerSpheresCheckChanged(ECheckBoxState NewState);
 
 	EVisibility GetFinderPanelVisibility() const;
 	EVisibility GetDropdownVisibility() const;

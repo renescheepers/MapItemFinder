@@ -48,6 +48,7 @@ void UMapItemFinderSubsystem::Deinitialize()
 	{
 		ClearPins(World);
 		ClearResourceNodePins(World);
+		ClearMercerSpherePins(World);
 	}
 	Super::Deinitialize();
 }
@@ -60,6 +61,7 @@ void UMapItemFinderSubsystem::SetFinderMode(UWorld* World, bool bEnableFinder)
 	{
 		RemoveActivePinsFromMap(World);
 		ClearResourceNodePins(World);
+		ClearMercerSpherePins(World);
 		return;
 	}
 
@@ -78,6 +80,14 @@ void UMapItemFinderSubsystem::SetFinderMode(UWorld* World, bool bEnableFinder)
 				RebuildResourceNodePins(World);
 			}
 			RequestResourceNodes(World);
+		}
+		if (bShowMercerSpheres)
+		{
+			if (CachedMercerSpheres.Num() > 0)
+			{
+				RebuildMercerSpherePins(World);
+			}
+			RequestMercerSpheres(World);
 		}
 	}
 }
@@ -373,6 +383,114 @@ void UMapItemFinderSubsystem::RebuildResourceNodePins(UWorld* World)
 	}
 }
 
+void UMapItemFinderSubsystem::RequestMercerSpheres(UWorld* World)
+{
+	if (!World)
+	{
+		return;
+	}
+
+	const int32 RequestId = ++LastMercerSpheresRequestId;
+
+	if (AFGPlayerController* PC = Cast<AFGPlayerController>(World->GetFirstPlayerController()))
+	{
+		if (UMapItemFinderRCO* RCO = PC->GetRemoteCallObjectOfClass<UMapItemFinderRCO>())
+		{
+			RCO->Server_RequestMercerSpheres(RequestId);
+			return;
+		}
+	}
+
+	const TArray<FMapFinderMercerSphere> LocalSpheres = FMapItemFinderScanner::ScanMercerSpheres(World);
+	HandleMercerSpheresChunk(World, RequestId, LocalSpheres, true, true, false);
+}
+
+void UMapItemFinderSubsystem::HandleMercerSpheresChunk(
+	UWorld* World,
+	int32 RequestId,
+	const TArray<FMapFinderMercerSphere>& SpheresChunk,
+	bool bReset,
+	bool bIsFinal,
+	bool bFromServer)
+{
+	if (!World || RequestId != LastMercerSpheresRequestId)
+	{
+		return;
+	}
+
+	if (bReset)
+	{
+		CachedMercerSpheres.Empty();
+	}
+	CachedMercerSpheres.Append(SpheresChunk);
+
+	if (bIsFinal && bFinderModeActive && bShowMercerSpheres)
+	{
+		RebuildMercerSpherePins(World);
+	}
+}
+
+void UMapItemFinderSubsystem::SetShowMercerSpheres(UWorld* World, bool bEnable)
+{
+	bShowMercerSpheres = bEnable;
+	if (!bShowMercerSpheres)
+	{
+		ClearMercerSpherePins(World);
+		return;
+	}
+
+	if (World && bFinderModeActive)
+	{
+		if (CachedMercerSpheres.Num() > 0)
+		{
+			RebuildMercerSpherePins(World);
+		}
+		RequestMercerSpheres(World);
+	}
+}
+
+void UMapItemFinderSubsystem::ClearMercerSpherePins(UWorld* World)
+{
+	if (World)
+	{
+		if (AFGActorRepresentationManager* RepManager = AFGActorRepresentationManager::Get(World))
+		{
+			for (UMapItemFinderRepresentation* Pin : MercerSpherePins)
+			{
+				if (IsValid(Pin))
+				{
+					RepManager->RemoveRepresentation(Pin);
+				}
+			}
+		}
+	}
+	MercerSpherePins.Empty();
+}
+
+void UMapItemFinderSubsystem::RebuildMercerSpherePins(UWorld* World)
+{
+	AFGActorRepresentationManager* RepManager = AFGActorRepresentationManager::Get(World);
+	if (!RepManager)
+	{
+		return;
+	}
+
+	ClearMercerSpherePins(World);
+
+	for (const FMapFinderMercerSphere& Sphere : CachedMercerSpheres)
+	{
+		UMapItemFinderRepresentation* Pin = NewObject<UMapItemFinderRepresentation>(RepManager);
+		if (!Pin)
+		{
+			continue;
+		}
+
+		Pin->InitializeMercerSpherePin(World, Sphere);
+		RepManager->AddRepresentation(Pin);
+		MercerSpherePins.Add(Pin);
+	}
+}
+
 void UMapItemFinderSubsystem::SetFilters(UWorld* World, bool bInShowProduced, bool bInShowStored)
 {
 	bShowProduced = bInShowProduced;
@@ -558,6 +676,10 @@ void UMapItemFinderSubsystem::HandleMapOpened(UFGMapWidget* MapWidget)
 		if (bShowResourceNodes)
 		{
 			RequestResourceNodes(World);
+		}
+		if (bShowMercerSpheres)
+		{
+			RequestMercerSpheres(World);
 		}
 	}
 }

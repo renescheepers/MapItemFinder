@@ -21,6 +21,10 @@ public:
 		UWorld* World,
 		const FMapFinderResourceNode& InNode);
 
+	void InitializeMercerSpherePin(
+		UWorld* World,
+		const FMapFinderMercerSphere& InSphere);
+
 	virtual FVector GetActorLocation() const override;
 	virtual UTexture2D* GetRepresentationTexture() const override;
 	virtual FText GetRepresentationText() const override;

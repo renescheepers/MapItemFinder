@@ -3,6 +3,8 @@
 #include "EngineUtils.h"
 #include "FGBuildableSubsystem.h"
 #include "FGInventoryComponent.h"
+#include "FGItemPickup.h"
+#include "FGItemPickup_Spawnable.h"
 #include "FGRecipe.h"
 #include "ItemAmount.h"
 #include "Buildables/FGBuildableManufacturer.h"
@@ -210,6 +212,43 @@ TArray<FMapFinderResourceNode> FMapItemFinderScanner::ScanResourceNodes(UWorld* 
 	}
 
 	return OutNodes;
+}
+
+TArray<FMapFinderMercerSphere> FMapItemFinderScanner::ScanMercerSpheres(UWorld* World)
+{
+	TArray<FMapFinderMercerSphere> OutSpheres;
+	if (!World)
+	{
+		return OutSpheres;
+	}
+
+	for (TActorIterator<AFGItemPickup> It(World); It; ++It)
+	{
+		AFGItemPickup* Pickup = *It;
+		if (!IsValid(Pickup) || Pickup->IsA<AFGItemPickup_Spawnable>() || Pickup->IsPickedUp())
+		{
+			continue;
+		}
+
+		const TSubclassOf<UFGItemDescriptor> ItemClass = Pickup->GetPickupItemClass();
+		if (!ItemClass)
+		{
+			continue;
+		}
+
+		const FString ClassName = ItemClass->GetName();
+		if (!ClassName.Contains(TEXT("WAT2")) && !ItemClass->GetPathName().Contains(TEXT("Desc_WAT2")))
+		{
+			continue;
+		}
+
+		FMapFinderMercerSphere Entry;
+		Entry.Location = Pickup->GetActorLocation();
+		Entry.ItemClass = ItemClass;
+		OutSpheres.Add(Entry);
+	}
+
+	return OutSpheres;
 }
 
 TArray<FMapFinderCluster> FMapItemFinderScanner::ScanWorldForItem(

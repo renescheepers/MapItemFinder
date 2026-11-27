@@ -72,6 +72,18 @@ public:
 	bool IsResourceNodeFilterSelected(TSubclassOf<UFGItemDescriptor> ResourceClass) const;
 	void ClearResourceNodePins(UWorld* World);
 
+	void RequestMercerSpheres(UWorld* World);
+	void HandleMercerSpheresChunk(
+		UWorld* World,
+		int32 RequestId,
+		const TArray<FMapFinderMercerSphere>& SpheresChunk,
+		bool bReset,
+		bool bIsFinal,
+		bool bFromServer = true);
+	void SetShowMercerSpheres(UWorld* World, bool bEnable);
+	void ClearMercerSpherePins(UWorld* World);
+	bool GetShowMercerSpheres() const { return bShowMercerSpheres; }
+
 	void SetFilters(UWorld* World, bool bInShowProduced, bool bInShowStored);
 	void ClearPins(UWorld* World);
 
@@ -96,6 +108,7 @@ private:
 	void RemoveActivePinsFromMap(UWorld* World);
 	void RebuildPins(UWorld* World);
 	void RebuildResourceNodePins(UWorld* World);
+	void RebuildMercerSpherePins(UWorld* World);
 
 #if !UE_SERVER
 	void InstallMapHooks();
@@ -113,6 +126,9 @@ private:
 	TArray<TObjectPtr<UMapItemFinderRepresentation>> ResourceNodePins;
 
 	UPROPERTY()
+	TArray<TObjectPtr<UMapItemFinderRepresentation>> MercerSpherePins;
+
+	UPROPERTY()
 	TSet<TSubclassOf<UFGItemDescriptor>> SelectedItemClasses;
 
 	UPROPERTY()
@@ -124,14 +140,19 @@ private:
 	UPROPERTY()
 	TArray<FMapFinderResourceNode> CachedResourceNodes;
 
+	UPROPERTY()
+	TArray<FMapFinderMercerSphere> CachedMercerSpheres;
+
 	TMap<TSubclassOf<UFGItemDescriptor>, TArray<FMapFinderCluster>> ResultsByItem;
 	TMap<TSubclassOf<UFGItemDescriptor>, int32> ItemRequestIds;
 	int32 NextSearchRequestId = 0;
 	int32 LastProducedItemsRequestId = 0;
 	int32 LastResourceNodesRequestId = 0;
+	int32 LastMercerSpheresRequestId = 0;
 	bool bFinderModeActive = false;
 	bool bShowProduced = true;
 	bool bShowStored = true;
 	bool bShowResourceNodes = false;
 	bool bShowAllResourceNodes = false;
+	bool bShowMercerSpheres = false;
 };

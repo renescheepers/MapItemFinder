@@ -11,6 +11,8 @@ public:
 
 	static TArray<FMapFinderResourceNode> ScanResourceNodes(UWorld* World);
 
+	static TArray<FMapFinderMercerSphere> ScanMercerSpheres(UWorld* World);
+
 	static TArray<FMapFinderCluster> ScanWorldForItem(
 		UWorld* World,
 		TSubclassOf<UFGItemDescriptor> ItemClass,

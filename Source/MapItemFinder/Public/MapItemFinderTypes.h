@@ -67,3 +67,15 @@ struct MAPITEMFINDER_API FMapFinderResourceNode
 	UPROPERTY()
 	bool bOccupied = false;
 };
+
+USTRUCT(BlueprintType)
+struct MAPITEMFINDER_API FMapFinderMercerSphere
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FVector_NetQuantize Location = FVector::ZeroVector;
+
+	UPROPERTY()
+	TSubclassOf<UFGItemDescriptor> ItemClass;
+};

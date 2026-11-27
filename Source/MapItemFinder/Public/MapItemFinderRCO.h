@@ -32,6 +32,16 @@ public:
 		bool bReset,
 		bool bIsFinal);
 
+	UFUNCTION(Server, Reliable)
+	void Server_RequestMercerSpheres(int32 RequestId);
+
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveMercerSpheresChunk(
+		int32 RequestId,
+		const TArray<FMapFinderMercerSphere>& SpheresChunk,
+		bool bReset,
+		bool bIsFinal);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SearchItem(TSubclassOf<UFGItemDescriptor> ItemClass, int32 RequestId);
 

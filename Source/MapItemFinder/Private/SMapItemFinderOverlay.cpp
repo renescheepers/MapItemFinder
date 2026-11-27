@@ -37,6 +37,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 	const bool bInitialProduced = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowProduced() : true;
 	const bool bInitialStored = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowStored() : true;
 	const bool bInitialNodes = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowResourceNodes() : false;
+	const bool bInitialMercer = SubsystemPtr.IsValid() ? SubsystemPtr->GetShowMercerSpheres() : false;
 
 	ChildSlot
 	[
@@ -95,7 +96,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 			.Padding(FMargin(0.0f, 6.0f, 0.0f, 0.0f))
 			[
 				SNew(SBox)
-				.WidthOverride(460.0f)
+				.WidthOverride(540.0f)
 				.Visibility(this, &SMapItemFinderOverlay::GetFinderPanelVisibility)
 				[
 					SNew(SBorder)
@@ -178,6 +179,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
+							.Padding(FMargin(0.0f, 0.0f, 14.0f, 0.0f))
 							[
 								SNew(SCheckBox)
 								.IsChecked(bInitialNodes ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
@@ -186,6 +188,19 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 									SNew(STextBlock)
 									.Text(FText::FromString(TEXT("Resource Nodes")))
 									.ColorAndOpacity(FLinearColor(0.45f, 0.85f, 1.00f, 1.0f))
+								]
+							]
+
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SCheckBox)
+								.IsChecked(bInitialMercer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+								.OnCheckStateChanged(this, &SMapItemFinderOverlay::OnMercerSpheresCheckChanged)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(TEXT("Mercer Spheres")))
+									.ColorAndOpacity(FLinearColor(0.88f, 0.45f, 1.00f, 1.0f))
 								]
 							]
 						]
@@ -750,6 +765,14 @@ void SMapItemFinderOverlay::OnResourceNodesCheckChanged(ECheckBoxState NewState)
 	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
 	{
 		Subsystem->SetShowResourceNodes(WorldPtr.Get(), NewState == ECheckBoxState::Checked);
+	}
+}
+
+void SMapItemFinderOverlay::OnMercerSpheresCheckChanged(ECheckBoxState NewState)
+{
+	if (UMapItemFinderSubsystem* Subsystem = SubsystemPtr.Get())
+	{
+		Subsystem->SetShowMercerSpheres(WorldPtr.Get(), NewState == ECheckBoxState::Checked);
 	}
 }
 
