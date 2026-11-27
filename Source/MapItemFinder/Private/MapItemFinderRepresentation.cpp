@@ -195,13 +195,28 @@ void UMapItemFinderRepresentation::InitializeMercerSpherePin(
 {
 	ItemClass = InSphere.ItemClass;
 	CachedIconTexture = GetItemIconTexture(ItemClass);
-	PinScale = 1.0f;
-	PinColor = FLinearColor(0.85f, 0.35f, 0.98f, 1.0f);
 
 	const FString ItemName = ItemClass
 		? UFGItemDescriptor::GetItemName(ItemClass).ToString()
 		: TEXT("Mercer Sphere");
-	const FString FullLabel = FString::Printf(TEXT("%s (Uncollected)"), *ItemName);
+
+	FString FullLabel;
+	if (InSphere.bInStorage)
+	{
+		PinScale = 1.15f;
+		PinColor = InSphere.bInDepot
+			? ColorForKind(EMapFinderResultKind::DimensionalDepot)
+			: ColorForKind(EMapFinderResultKind::Stored);
+		const TCHAR* Tag = InSphere.bInDepot ? TEXT("[Depot]") : TEXT("[Stored]");
+		FullLabel = FString::Printf(TEXT("%s — %s (%d)"), *ItemName, Tag, InSphere.Count);
+	}
+	else
+	{
+		PinScale = 1.0f;
+		PinColor = FLinearColor(0.85f, 0.35f, 0.98f, 1.0f);
+		FullLabel = FString::Printf(TEXT("%s (Uncollected)"), *ItemName);
+	}
+
 	PinText = FText::FromString(FullLabel);
 
 	const int32 ResolvedIconId = ResolveIconID(World, ItemClass, CachedIconTexture);

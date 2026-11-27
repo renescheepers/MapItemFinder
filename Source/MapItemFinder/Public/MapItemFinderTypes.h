@@ -78,4 +78,13 @@ struct MAPITEMFINDER_API FMapFinderMercerSphere
 
 	UPROPERTY()
 	TSubclassOf<UFGItemDescriptor> ItemClass;
+
+	UPROPERTY()
+	int32 Count = 1;
+
+	UPROPERTY()
+	bool bInStorage = false;
+
+	UPROPERTY()
+	bool bInDepot = false;
 };

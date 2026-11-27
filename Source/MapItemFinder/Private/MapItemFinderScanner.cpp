@@ -222,6 +222,18 @@ TArray<FMapFinderMercerSphere> FMapItemFinderScanner::ScanMercerSpheres(UWorld* 
 		return OutSpheres;
 	}
 
+	auto IsMercerSphereClass = [](TSubclassOf<UFGItemDescriptor> ItemClass) -> bool
+	{
+		if (!ItemClass)
+		{
+			return false;
+		}
+		const FString ClassName = ItemClass->GetName();
+		return ClassName.Contains(TEXT("WAT2")) || ItemClass->GetPathName().Contains(TEXT("Desc_WAT2"));
+	};
+
+	TSubclassOf<UFGItemDescriptor> MercerClass;
+
 	for (TActorIterator<AFGItemPickup> It(World); It; ++It)
 	{
 		AFGItemPickup* Pickup = *It;
@@ -231,21 +243,77 @@ TArray<FMapFinderMercerSphere> FMapItemFinderScanner::ScanMercerSpheres(UWorld* 
 		}
 
 		const TSubclassOf<UFGItemDescriptor> ItemClass = Pickup->GetPickupItemClass();
-		if (!ItemClass)
+		if (!IsMercerSphereClass(ItemClass))
 		{
 			continue;
 		}
 
-		const FString ClassName = ItemClass->GetName();
-		if (!ClassName.Contains(TEXT("WAT2")) && !ItemClass->GetPathName().Contains(TEXT("Desc_WAT2")))
+		if (!MercerClass)
 		{
-			continue;
+			MercerClass = ItemClass;
 		}
 
 		FMapFinderMercerSphere Entry;
 		Entry.Location = Pickup->GetActorLocation();
 		Entry.ItemClass = ItemClass;
+		Entry.Count = FMath::Max(1, Pickup->GetNumItems());
+		Entry.bInStorage = false;
+		Entry.bInDepot = false;
 		OutSpheres.Add(Entry);
+	}
+
+	if (AFGBuildableSubsystem* BuildableSubsystem = AFGBuildableSubsystem::Get(World))
+	{
+		TArray<AFGBuildableStorage*> Storages;
+		BuildableSubsystem->GetTypedBuildable<AFGBuildableStorage>(Storages);
+		for (AFGBuildableStorage* Storage : Storages)
+		{
+			if (!IsValid(Storage))
+			{
+				continue;
+			}
+
+			UFGInventoryComponent* Inventory = Storage->GetStorageInventory();
+			if (!IsValid(Inventory))
+			{
+				continue;
+			}
+
+			int32 Count = 0;
+			TSubclassOf<UFGItemDescriptor> FoundClass = MercerClass;
+			if (MercerClass)
+			{
+				Count = Inventory->GetNumItems(MercerClass);
+			}
+			else
+			{
+				TArray<FInventoryStack> Stacks;
+				Inventory->GetInventoryStacks(Stacks);
+				for (const FInventoryStack& Stack : Stacks)
+				{
+					const TSubclassOf<UFGItemDescriptor> StackClass = Stack.Item.GetItemClass();
+					if (IsMercerSphereClass(StackClass))
+					{
+						FoundClass = StackClass;
+						MercerClass = StackClass;
+						Count += Stack.NumItems;
+					}
+				}
+			}
+
+			if (Count <= 0)
+			{
+				continue;
+			}
+
+			FMapFinderMercerSphere Entry;
+			Entry.Location = Storage->GetActorLocation();
+			Entry.ItemClass = FoundClass;
+			Entry.Count = Count;
+			Entry.bInStorage = true;
+			Entry.bInDepot = Storage->IsA<AFGCentralStorageContainer>();
+			OutSpheres.Add(Entry);
+		}
 	}
 
 	return OutSpheres;
