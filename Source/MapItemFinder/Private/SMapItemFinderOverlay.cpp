@@ -26,7 +26,7 @@ namespace
 	const FLinearColor ColorHeaderBar(0.32f, 0.32f, 0.32f, 1.0f);
 	const FLinearColor ColorSearchBar(0.34f, 0.34f, 0.34f, 1.0f);
 	const FLinearColor ColorFooterBg(0.14f, 0.14f, 0.14f, 0.98f);
-	const FLinearColor ColorButtonNeutral(0.38f, 0.38f, 0.38f, 1.0f);
+	const FLinearColor ColorButtonNeutral(0.45f, 0.45f, 0.45f, 1.0f);
 	const FLinearColor ColorChipUnselected(0.20f, 0.20f, 0.20f, 1.0f);
 	const FLinearColor ColorAccentOrange(0.89f, 0.48f, 0.12f, 1.0f);
 	const FLinearColor ColorTextPrimary(0.92f, 0.92f, 0.92f, 1.0f);
@@ -117,7 +117,7 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Fill)
-		.Padding(FMargin(0.0f, 112.0f, 16.0f, 128.0f))
+		.Padding(FMargin(0.0f, 148.0f, 22.0f, 160.0f))
 		[
 			SNew(SVerticalBox)
 
@@ -125,17 +125,19 @@ void SMapItemFinderOverlay::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Right)
-			.Padding(FMargin(0.0f, 0.0f, 0.0f, 6.0f))
+			.Padding(FMargin(0.0f, 0.0f, 0.0f, 8.0f))
 			[
 				SNew(SBox)
-				.MinDesiredWidth(116.0f)
+				.WidthOverride(150.0f)
+				.HeightOverride(42.0f)
 				[
 					SNew(SButton)
 					.ButtonStyle(&GetFlatButtonStyle())
 					.ButtonColorAndOpacity(this, &SMapItemFinderOverlay::GetToggleFinderButtonColor)
 					.OnClicked(this, &SMapItemFinderOverlay::OnToggleFinderModeClicked)
-					.ContentPadding(FMargin(14.0f, 7.0f))
+					.ContentPadding(FMargin(0.0f))
 					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
 						.Text(this, &SMapItemFinderOverlay::GetToggleFinderButtonText)
@@ -864,10 +866,7 @@ FText SMapItemFinderOverlay::GetToggleFinderButtonText() const
 
 FSlateColor SMapItemFinderOverlay::GetToggleFinderButtonColor() const
 {
-	const bool bIsFinder = SubsystemPtr.IsValid() && SubsystemPtr->IsFinderModeActive();
-	return bIsFinder
-		? FSlateColor(ColorButtonNeutral)
-		: FSlateColor(ColorAccentOrange);
+	return FSlateColor(ColorButtonNeutral);
 }
 
 FSlateColor SMapItemFinderOverlay::GetNodeFilterButtonColor(TSubclassOf<UFGItemDescriptor> ResourceClass) const
